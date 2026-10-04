@@ -1,38 +1,3 @@
-<!--
-═══════════════════════════════════════════════════════════════════════
-KONTRAK VERIFIKASI v1.2.0 — KUNCI PENGINGAT SEBELUM EDIT APA PUN
-═══════════════════════════════════════════════════════════════════════
-[1] SETIAP EDIT, cek:
-    - Semua id HTML yang diquery JS ada di DOM
-    - Semua class CSS yang dipakai HTML terdefinisi
-    - Semua fungsi yang direferensikan event handler punya deklarasi
-    - Setiap entry GRAMMAR_GLOSSARY punya: id, name, category, definition
-    - Setiap glossId di detectTense ada di GRAMMAR_GLOSSARY
-    - Setiap TAG_TO_GLOSSARY value ada di GRAMMAR_GLOSSARY
-    - Setiap PHRASE_TO_GLOSSARY value ada di GRAMMAR_GLOSSARY
-
-[2] SEBELUM output, jalankan "Run Tests" (di halaman Settings).
-    Target W2: 39 pass · 0 fail · 5 xfail (known W3).
-
-[3] SCOPE GELOMBANG 2 (patch ini):
-    ✅ tagOne: geser fallback MD ke bawah semua suffix rule
-    ✅ LEX: jamak tak beraturan (children/people/men/women/...) + news
-    ✅ validate: MD menerima VBP sebagai bentuk dasar
-    ✅ splitClauses(): potong kalimat jadi klausa (PUNCT .!? / CC setelah verb / that|because + subjek)
-    ✅ analyzeStructure(tokens, spans, rangeStart, rangeEnd): parameter rentang klausa
-    ✅ validate: terima array struktur; deteksi CC dalam subjek → paksa plural
-    ✅ analyze() + runOneTest(): pipeline per klausa
-    ✅ test corpus: hapus xfail dari 9 item W2
-    ❌ JANGAN sentuh: chunk, detectGrammar, render*
-
-[4] FORMAT OUTPUT:
-    1 file HTML standalone · CSS+JS inline · versi di <title>
-
-[5] GELOMBANG BERIKUT (catatan, JANGAN diimplementasi sekarang):
-    W3: modal perfect, be going to, pasif perfect/future, copula reorder
-    W4: rapikan overlap chunker, optimasi markAux O(n^2)
-═══════════════════════════════════════════════════════════════════════
--->
 <!DOCTYPE html>
 <html lang="id">
 <head>
