@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Grammar Formula Highlighter — v1.2.0 (W2 patched)</title>
+<title>Grammar Formula Highlighter — v1.4.0 (W4 patched)</title>
 <style>
   *{box-sizing:border-box}
   :root{--bg:#fafafa;--fg:#222;--muted:#888;--line:#e2e2e2;--panel:#fff;--accent:#4a6ee0;--accent-bg:#eef3ff;--nav-h:68px;--ok:#2e8b57;--fail:#d9534f;--xfail:#e0a800}
@@ -257,8 +257,8 @@
     <p>Halaman pengaturan aplikasi. Pengaturan tambahan akan tersedia di bagian ini pada versi mendatang.</p>
   </div>
   <div class="settings-card">
-    <h3>Test Suite (Gelombang 2)</h3>
-    <p style="margin-bottom:12px">Jalankan korpus uji regresi untuk memverifikasi patch. Target: <code>39 pass · 0 fail · 5 xfail</code>. xfail adalah test yang sengaja ditandai gagal sampai gelombang berikutnya.</p>
+    <h3>Test Suite (Gelombang 4)</h3>
+    <p style="margin-bottom:12px">Jalankan korpus uji regresi untuk memverifikasi patch. Target: <code>49 pass · 0 fail · 0 xfail</code>. xfail adalah test yang sengaja ditandai gagal sampai gelombang berikutnya.</p>
     <button class="test-btn" id="run-tests" type="button">▶ Run Tests</button>
     <div id="test-panel" hidden style="margin-top:16px"></div>
   </div>
@@ -327,23 +327,38 @@
    KONTRAK VERIFIKASI — versi JS (grep target: "_CONTRACT")
    ============================================================ */
 const _CONTRACT = {
-  version: '1.2.0',
-  wave: 'W2',
+  version: '1.4.0',
+  wave: 'W4',
   scope: [
-    'tagOne: geser fallback MD ke bawah semua suffix rule',
-    'LEX: jamak tak beraturan (children/people/men/women/...) + news',
-    'validate: MD menerima VBP sebagai bentuk dasar',
-    'splitClauses: potong kalimat jadi klausa',
-    'analyzeStructure: parameter rentang klausa',
-    'validate: array struktur; deteksi CC dalam subjek'
+    'computeNextNonNot + VERB_TAGS: helper bersama',
+    'markAux: strictly O(n) via precompute',
+    'validate: reuse nextNonNot',
+    'chunk: normalizeSpans anti-overlap',
+    'test corpus: Kelompok F (5 test invariant)'
   ],
-  frozen: ['chunk','detectGrammar','render*'],
-  target: '39 pass · 0 fail · 5 xfail',
+  frozen: ['detectTense','render*'],
+  target: '49 pass · 0 fail · 0 xfail',
   nextWave: {
-    W3: 'modal perfect, be going to, pasif perfect/future, copula reorder',
-    W4: 'rapikan overlap chunker, optimasi markAux O(n^2)'
+    W4: 'selesai'
   }
 };
+
+/* ============================================================
+   0. UTIL SHARED — [W4] helper untuk markAux & validate (strictly O(n))
+   ============================================================ */
+const VERB_TAGS = new Set(['VB','VBD','VBG','VBN','VBP','VBZ']);
+
+/* nextNonNot[i] = indeks terkecil j > i dengan tokens[j] BUKAN "not".
+   Kalau tidak ada, kembalikan tokens.length. */
+function computeNextNonNot(tokens) {
+  const n = tokens.length;
+  const arr = new Array(n).fill(n);
+  for (let i = n - 2; i >= 0; i--) {
+    const nx = tokens[i+1];
+    arr[i] = (nx && nx.tag === 'RB' && nx.lemma === 'not') ? arr[i+1] : i+1;
+  }
+  return arr;
+}
 
 /* ============================================================
    1. LEXICON
@@ -434,6 +449,13 @@ const IRREG = {
   worn:{lemma:'wear',tag:'VBN',form:'V3'}, drunk:{lemma:'drink',tag:'VBN',form:'V3'},
   woken:{lemma:'wake',tag:'VBN',form:'V3'}
 };
+
+/* [W3] Kata kerja yang bentuk V2 == V3 (lampau == past participle).
+   Saat muncul setelah have/be, tag-nya harus VBN, bukan VBD. */
+const V2_EQ_V3 = new Set([
+  'left','said','told','brought','bought','caught','taught','thought',
+  'found','held','lost','won','sat','stood','built','got','slept','read'
+]);
 
 /* ============================================================
    3. CONTRACTIONS
@@ -612,6 +634,15 @@ function tagOne(tokens, i) {
   }
   if (IRREG[w]) {
     const ir = IRREG[w];
+    /* [W3] V2==V3 (left/said/told/...) setelah have/be → VBN,
+       bukan VBD. Menghilangkan false positive "v3". */
+    const afterHave = prev && prev.lemma === 'have' && prev.aux;
+    const afterBe   = prev && prev.lemma === 'be'   && prev.aux;
+    if (ir.tag === 'VBD' && V2_EQ_V3.has(w) && (afterHave || afterBe)) {
+      t.tag = 'VBN'; t.lemma = ir.lemma; t.form = 'V3';
+      if (ir.amb) t.amb = ir.amb.slice();
+      return;
+    }
     t.tag = ir.tag; t.lemma = ir.lemma; t.form = ir.form;
     if (ir.amb) t.amb = ir.amb.slice();
     return;
@@ -654,14 +685,16 @@ function tagOne(tokens, i) {
   t.tag = 'NN'; t.lemma = w; t.unknown = true;
 }
 
+/* [W4] Strictly O(n): precompute nextNonNot, lalu single pass. */
 function markAux(tokens) {
-  for (let i = 0; i < tokens.length; i++) {
+  const n = tokens.length;
+  const nextNonNot = computeNextNonNot(tokens);
+  for (let i = 0; i < n; i++) {
     const t = tokens[i];
     if (t.tag === 'MD') { t.aux = true; continue; }
     if (t.lemma === 'be' || t.lemma === 'do' || t.lemma === 'have') {
-      let j = i + 1;
-      while (j < tokens.length && tokens[j].tag === 'RB' && tokens[j].lemma === 'not') j++;
-      t.aux = j < tokens.length && /^(VB|VBD|VBG|VBN|VBP|VBZ)$/.test(tokens[j].tag);
+      const j = nextNonNot[i];
+      t.aux = j < n && VERB_TAGS.has(tokens[j].tag);
     } else t.aux = false;
   }
 }
@@ -682,7 +715,7 @@ function tagAll(tokens) {
 }
 
 /* ============================================================
-   5. CHUNKER (frozen)
+   5. CHUNKER
    ============================================================ */
 function detectNP(tokens, i) {
   let j = i, head = false;
@@ -691,6 +724,22 @@ function detectNP(tokens, i) {
   if (tokens[j] && /^(NN|NNS|NNP|PRP)$/.test(tokens[j].tag)) { head = true; j++; }
   return head ? { start: i, end: j - 1 } : null;
 }
+
+/* [W4] Defensive: pastikan spans terurut by start dan tidak overlap.
+   No-op pada chunker saat ini (tiap branch menaikkan i melampaui span),
+   tapi mencegah regresi bila branch baru ditambahkan di masa depan. */
+function normalizeSpans(spans) {
+  if (spans.length <= 1) return spans;
+  const sorted = spans.slice().sort((a, b) => a.start - b.start || b.end - a.end);
+  const out = [];
+  for (const s of sorted) {
+    const last = out[out.length - 1];
+    if (last && s.start <= last.end) continue;
+    out.push(s);
+  }
+  return out;
+}
+
 function chunk(tokens) {
   const spans = [];
   let i = 0;
@@ -737,7 +786,7 @@ function chunk(tokens) {
     }
     i++;
   }
-  return spans;
+  return normalizeSpans(spans);
 }
 
 /* ============================================================
@@ -813,10 +862,28 @@ function detectTense(tokens, vp) {
   const L = verbs.map(v => v.lemma), T = verbs.map(v => v.tag);
   const N = verbs.length;
 
+  /* [W3] be + going to + V1 (future "be going to").
+     vp.end menunjuk VBG "going"; cek dua token sesudahnya. */
+  const lastVerb = verbs[verbs.length - 1];
+  if (L[0]==='be' && lastVerb.tag === 'VBG' && lastVerb.lemma === 'go') {
+    const afterTo = tokens[vp.end + 1];
+    const afterV  = tokens[vp.end + 2];
+    if (afterTo && afterTo.tag === 'TO' && afterV && /^(VB|VBP|VBZ)$/.test(afterV.tag)) {
+      return {name:'Be going to (Future)', formula:'be + going to + V1',
+              span:{start:vp.start, end:vp.end + 2}, glossId:'simple-future'};
+    }
+  }
+
   if (L[0]==='have' && N>=3 && L[1]==='be' && T[2]==='VBG')
     return T[0]==='VBD'
       ? {name:'Past Perfect Continuous', formula:'had + been + V-ing', span:vp, glossId:'past-perfect-continuous'}
       : {name:'Present Perfect Continuous', formula:'have/has + been + V-ing', span:vp, glossId:'present-perfect-continuous'};
+  /* [W3] have + been + VBN → perfect passive (dicek SEBELUM have + VBN) */
+  if (L[0]==='have' && N>=3 && L[1]==='be' && T[2]==='VBN')
+    return T[0]==='VBD'
+      ? {name:'Past Perfect (Passive)', formula:'had + been + V3', span:vp, glossId:'passive-voice'}
+      : {name:'Present Perfect (Passive)', formula:'have/has + been + V3', span:vp, glossId:'passive-voice'};
+
   if (L[0]==='have' && T[1]==='VBN')
     return T[0]==='VBD'
       ? {name:'Past Perfect', formula:'had + V3', span:vp, glossId:'past-perfect'}
@@ -835,21 +902,29 @@ function detectTense(tokens, vp) {
     return {name:'Future Perfect', formula:'will + have + V3', span:vp, glossId:'future-perfect'};
   if (T[0]==='MD' && (L[0]==='will'||L[0]==='shall') && N>=3 && L[1]==='be' && T[2]==='VBG')
     return {name:'Future Continuous', formula:'will + be + V-ing', span:vp, glossId:'future-continuous'};
+  /* [W3] will + be + VBN → future passive */
+  if (T[0]==='MD' && (L[0]==='will'||L[0]==='shall') && N>=3 && L[1]==='be' && T[2]==='VBN')
+    return {name:'Simple Future (Passive)', formula:'will + be + V3', span:vp, glossId:'passive-voice'};
   if (T[0]==='MD' && (L[0]==='will'||L[0]==='shall') && N>=2 && T[1]==='VB')
     return {name:'Simple Future', formula:'will + V1', span:vp, glossId:'simple-future'};
   if (L[0]==='do' && T[0]==='VBD' && N>=2 && T[1]==='VB')
     return {name:'Simple Past', formula:'did + V1 (untuk negatif/tanya)', span:vp, glossId:'negation'};
   if (L[0]==='do' && T[0]!=='VBD' && N>=2 && T[1]==='VB')
     return {name:'Simple Present', formula:'do/does + V1 (untuk negatif/tanya)', span:vp, glossId:'negation'};
+  /* [W3] modal + have + V3 → modal perfect (should have gone, must have left) */
+  if (T[0]==='MD' && N>=3 && L[1]==='have' && T[2]==='VBN')
+    return {name:'Modal Perfect', formula:'modal + have + V3', span:vp, glossId:'modal-construction'};
   if (T[0]==='MD' && N>=2 && T[1]==='VB')
     return {name:'Modal Construction', formula:'modal + V1', span:vp, glossId:'modal-construction'};
-  if (T[0]==='VBD') return {name:'Simple Past', formula:'S + V2', span:vp, glossId:'simple-past'};
-  if (T[0]==='VBP'||T[0]==='VBZ') return {name:'Simple Present', formula:'S + V1/V-s', span:vp, glossId:'simple-present'};
-  if (T[0]==='VB') return {name:'Simple Present', formula:'S + V1', span:vp, glossId:'simple-present'};
+  /* [W3] Copula dicek lebih awal — kalau L[0]==='be', pasti copula
+     (be + VBG/VBN sudah tertangkap branch di atas). */
   if (L[0]==='be')
     return T[0]==='VBD'
       ? {name:'Simple Past (copula)', formula:'was/were + pelengkap', span:vp, glossId:'copular-verb'}
       : {name:'Simple Present (copula)', formula:'am/is/are + pelengkap', span:vp, glossId:'copular-verb'};
+  if (T[0]==='VBD') return {name:'Simple Past', formula:'S + V2', span:vp, glossId:'simple-past'};
+  if (T[0]==='VBP'||T[0]==='VBZ') return {name:'Simple Present', formula:'S + V1/V-s', span:vp, glossId:'simple-present'};
+  if (T[0]==='VB') return {name:'Simple Present', formula:'S + V1', span:vp, glossId:'simple-present'};
   return null;
 }
 const detectGrammar = (tokens, spans) => spans.filter(s => s.type === 'VP').map(vp => detectTense(tokens, vp)).filter(Boolean);
@@ -891,7 +966,9 @@ function validate(tokens, structureOrList) {
     }
   }
 
-  const skipNot = i => { let j = i+1; while (j < tokens.length && tokens[j].tag === 'RB' && tokens[j].lemma === 'not') j++; return j; };
+  /* [W4] Strictly O(n): reuse precomputed nextNonNot. */
+  const nextNonNot = computeNextNonNot(tokens);
+  const skipNot = i => nextNonNot[i];
 
   tokens.forEach((t, i) => {
     if (t.tag === 'MD') {
@@ -1031,7 +1108,11 @@ const TENSE_COLORS = {
   'Present Perfect Continuous':'#e0f8f8','Past Perfect Continuous':'#d0e8e8',
   'Future Perfect Continuous':'#c0d8d8','Modal Construction':'#fff2b8',
   'Simple Present (Passive)':'#ffd0e0','Simple Past (Passive)':'#ffd0e0',
-  'Simple Present (copula)':'#d4f5d4','Simple Past (copula)':'#ffe0e0'
+  'Simple Present (copula)':'#d4f5d4','Simple Past (copula)':'#ffe0e0',
+  'Modal Perfect':'#fff2b8',
+  'Be going to (Future)':'#d0f0f5',
+  'Present Perfect (Passive)':'#ffd0e0','Past Perfect (Passive)':'#ffd0e0',
+  'Simple Future (Passive)':'#ffd0e0'
 };
 
 /* ============================================================
@@ -2215,13 +2296,20 @@ const TEST_CORPUS = [
   { group: 'D', s: 'Tom and Mary plays tennis.', issue: ['subject-verb-agreement'] },
   { group: 'D', s: 'The news is good.', noIssue: ['subject-verb-agreement'] },
 
-  /* ---- Kelompok E: xfail W3 ---- */
-  { group: 'E', s: 'She should have gone home.', tense: ['Modal'], xfail: 'W3: modal perfect' },
-  { group: 'E', s: 'He must have left.', xfail: 'W3: modal perfect' },
-  { group: 'E', s: 'She is going to buy a car.', tense: ['going to'], xfail: 'W3: be going to' },
-  { group: 'E', s: 'The letter has been written.', tense: ['Passive'], xfail: 'W3: pasif perfect' },
-  { group: 'E', s: 'The shop will be closed tomorrow.', tense: ['Passive'], xfail: 'W3: pasif future' },
-  { group: 'E', s: 'She is a teacher.', tense: ['copula'], xfail: 'W3: cabang copula mati' }
+  /* ---- Kelompok E: dulu xfail W3, sekarang harus PASS ---- */
+  { group: 'E', s: 'She should have gone home.', tense: ['Modal'] },
+  { group: 'E', s: 'He must have left.', tense: ['Modal'] },
+  { group: 'E', s: 'She is going to buy a car.', tense: ['going to'] },
+  { group: 'E', s: 'The letter has been written.', tense: ['Passive'] },
+  { group: 'E', s: 'The shop will be closed tomorrow.', tense: ['Passive'] },
+  { group: 'E', s: 'She is a teacher.', tense: ['copula'] },
+
+  /* ---- Kelompok F: W4 chunk invariant + regression not/is going to ---- */
+  { group: 'F', s: 'The man wearing a hat is my uncle.', chunkNoOverlap: true },
+  { group: 'F', s: 'Reading books is fun.', chunkNoOverlap: true },
+  { group: 'F', s: 'She has not been reading.', tense: ['Present Perfect Continuous'] },
+  { group: 'F', s: 'She is not going to buy a car.', tense: ['going to'] },
+  { group: 'F', s: 'They will not have finished.', tense: ['Future Perfect'], chunkNoOverlap: true }
 ];
 
 function runOneTest(tc) {
@@ -2243,6 +2331,17 @@ function runOneTest(tc) {
   const infoMsgs = issues.filter(i => i.level === 'info').map(i => i.msg);
 
   const fails = [];
+
+  /* [W4] Invariant: chunk spans harus terurut & tidak overlap. */
+  if (tc.chunkNoOverlap) {
+    const sorted = spans.slice().sort((a, b) => a.start - b.start);
+    for (let k = 1; k < sorted.length; k++) {
+      if (sorted[k].start <= sorted[k-1].end) {
+        fails.push(`chunk overlap: [${sorted[k-1].start},${sorted[k-1].end}] vs [${sorted[k].start},${sorted[k].end}]`);
+        break;
+      }
+    }
+  }
 
   if (tc.tense) {
     for (const exp of tc.tense) {
