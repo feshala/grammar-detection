@@ -1,9 +1,41 @@
+<!--
+═══════════════════════════════════════════════════════════════════════
+KONTRAK VERIFIKASI v1.6.0 — KUNCI PENGINGAT SEBELUM EDIT APA PUN
+═══════════════════════════════════════════════════════════════════════
+[1] SETIAP EDIT, cek:
+    - Semua id HTML yang diquery JS ada di DOM
+    - Semua class CSS yang dipakai HTML terdefinisi
+    - Semua fungsi yang direferensikan event handler punya deklarasi
+    - Setiap entry GRAMMAR_GLOSSARY punya: id, name, category, definition
+    - Setiap glossId di detectTense ada di GRAMMAR_GLOSSARY
+    - Setiap TAG_TO_GLOSSARY value ada di GRAMMAR_GLOSSARY
+    - Setiap PHRASE_TO_GLOSSARY value ada di GRAMMAR_GLOSSARY
+
+[2] SEBELUM output, jalankan "Run Tests" (di halaman Settings).
+    Target W6: 93 pass · 0 fail · 0 xfail.
+
+[3] SCOPE GELOMBANG 6 (patch ini) — revisi scope W6:
+    ✅ splitClauses: perluas CLAUSE_SUBORDINATORS (if/while/although/...)
+    ✅ splitClauses: tangani WRB mid-sentence (when/where/why)
+    ✅ analyzeStructure: subjek berbasis last-NP chunk + CC-chain
+    ✅ analyzeStructure: filter NP yang didahului IN (bagian dari PP)
+    ✅ analyzeStructure: trim PUNCT di subjek fallback
+    ✅ test corpus: Kelompok H (18 test subordinate + fronting + have-NP-V3)
+    ❌ JANGAN sentuh: detectTense, render*
+
+[4] FORMAT OUTPUT:
+    1 file HTML standalone · CSS+JS inline · versi di <title>
+
+[5] GELOMBANG BERIKUT (catatan, JANGAN diimplementasi sekarang):
+    W7: klausa relatif (split WP/WDT), optimasi pipeline klausa (interval tree)
+═══════════════════════════════════════════════════════════════════════
+-->
 <!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Grammar Formula Highlighter — v1.4.0 (W4 patched)</title>
+<title>Grammar Formula Highlighter — v1.6.0 (W6 patched)</title>
 <style>
   *{box-sizing:border-box}
   :root{--bg:#fafafa;--fg:#222;--muted:#888;--line:#e2e2e2;--panel:#fff;--accent:#4a6ee0;--accent-bg:#eef3ff;--nav-h:68px;--ok:#2e8b57;--fail:#d9534f;--xfail:#e0a800}
@@ -257,8 +289,8 @@
     <p>Halaman pengaturan aplikasi. Pengaturan tambahan akan tersedia di bagian ini pada versi mendatang.</p>
   </div>
   <div class="settings-card">
-    <h3>Test Suite (Gelombang 4)</h3>
-    <p style="margin-bottom:12px">Jalankan korpus uji regresi untuk memverifikasi patch. Target: <code>49 pass · 0 fail · 0 xfail</code>. xfail adalah test yang sengaja ditandai gagal sampai gelombang berikutnya.</p>
+    <h3>Test Suite (Gelombang 6)</h3>
+    <p style="margin-bottom:12px">Jalankan korpus uji regresi untuk memverifikasi patch. Target: <code>93 pass · 0 fail · 0 xfail</code>. xfail adalah test yang sengaja ditandai gagal sampai gelombang berikutnya.</p>
     <button class="test-btn" id="run-tests" type="button">▶ Run Tests</button>
     <div id="test-panel" hidden style="margin-top:16px"></div>
   </div>
@@ -327,29 +359,26 @@
    KONTRAK VERIFIKASI — versi JS (grep target: "_CONTRACT")
    ============================================================ */
 const _CONTRACT = {
-  version: '1.4.0',
-  wave: 'W4',
+  version: '1.6.0',
+  wave: 'W6',
   scope: [
-    'computeNextNonNot + VERB_TAGS: helper bersama',
-    'markAux: strictly O(n) via precompute',
-    'validate: reuse nextNonNot',
-    'chunk: normalizeSpans anti-overlap',
-    'test corpus: Kelompok F (5 test invariant)'
+    'splitClauses: perluas CLAUSE_SUBORDINATORS + tangani WRB mid-sentence',
+    'analyzeStructure: subjek berbasis last-NP chunk (+ CC-chain)',
+    'analyzeStructure: filter NP didahului IN + trim PUNCT di fallback',
+    'test corpus: Kelompok H (18 test subordinate + fronting + have-NP-V3)'
   ],
   frozen: ['detectTense','render*'],
-  target: '49 pass · 0 fail · 0 xfail',
+  target: '93 pass · 0 fail · 0 xfail',
   nextWave: {
-    W4: 'selesai'
+    W7: 'klausa relatif (split WP/WDT), optimasi pipeline klausa'
   }
 };
 
 /* ============================================================
-   0. UTIL SHARED — [W4] helper untuk markAux & validate (strictly O(n))
+   0. UTIL SHARED
    ============================================================ */
 const VERB_TAGS = new Set(['VB','VBD','VBG','VBN','VBP','VBZ']);
 
-/* nextNonNot[i] = indeks terkecil j > i dengan tokens[j] BUKAN "not".
-   Kalau tidak ada, kembalikan tokens.length. */
 function computeNextNonNot(tokens) {
   const n = tokens.length;
   const arr = new Array(n).fill(n);
@@ -358,6 +387,58 @@ function computeNextNonNot(tokens) {
     arr[i] = (nx && nx.tag === 'RB' && nx.lemma === 'not') ? arr[i+1] : i+1;
   }
   return arr;
+}
+
+function findVerbAfterAux(tokens, startIdx, maxHops) {
+  if (maxHops == null) maxHops = 4;
+  for (let k = 1; k <= maxHops && startIdx + k < tokens.length; k++) {
+    const t = tokens[startIdx + k];
+    if (VERB_TAGS.has(t.tag)) return startIdx + k;
+    if (/^(RB|PRP|DT|PRP\$|JJ|JJR|JJS|CD|WP|WDT|WRB|UH)$/.test(t.tag)) continue;
+    return -1;
+  }
+  return -1;
+}
+
+function findSubjectHead(tokens, start, end) {
+  for (let i = start; i <= end; i++) {
+    const t = tokens[i];
+    if (/^(DT|PRP\$|CD|JJ|JJR|JJS|RB)$/.test(t.tag)) continue;
+    if (t.tag === 'WP' || t.tag === 'WDT' || t.tag === 'WRB' || t.tag === 'IN') return -1;
+    if (/^(NN|NNS|NNP|PRP)$/.test(t.tag)) return i;
+    if (t.tag === 'VBG') return i;
+    return -1;
+  }
+  return -1;
+}
+
+function getSubjectNumber(tokens, span) {
+  if (!span) return 'skip';
+  const headIdx = findSubjectHead(tokens, span.start, span.end);
+  if (headIdx >= 0) {
+    const h = tokens[headIdx], w = h.text.toLowerCase();
+    if (h.tag === 'PRP') {
+      if (w === 'i') return '1sg';
+      if (w === 'he' || w === 'she' || w === 'it') return '3sg';
+      return 'other';
+    }
+    if (h.tag === 'NNP' || h.tag === 'NN' || h.tag === 'VBG') return '3sg';
+    if (h.tag === 'NNS') return 'other';
+    return 'skip';
+  }
+  const last = tokens[span.end];
+  if (last.tag === 'PRP') {
+    const w = last.text.toLowerCase();
+    if (w === 'i') return '1sg';
+    if (w === 'he' || w === 'she' || w === 'it') return '3sg';
+    return 'other';
+  }
+  if (last.tag === 'DT') {
+    const w = last.text.toLowerCase();
+    if (w === 'this' || w === 'that') return '3sg';
+    if (w === 'these' || w === 'those') return 'other';
+  }
+  return 'skip';
 }
 
 /* ============================================================
@@ -403,14 +484,16 @@ reg('water', {t:'NN',amb:['VB']});
 reg(['book','room','school','market','food','morning','evening','night','day','year','week','month','hour','minute','second','time','friend','family','home','house','city','country','world','life','way','thing','people','man','woman','child','student','teacher','author','exam','test','homework','breakfast','lunch','dinner','car','tree','dog','cat','table','chair','door','window','hand','head','eye','face','money','job','idea','problem','question','answer','story','word','name','number','part','place','church','office','hospital','football','basketball','sport','game','music','song','movie','language','letter','email','message','phone','computer','internet','island','mountain','river','sea','ocean','sky','sun','moon','star','air','fire','earth','garden','park','street','road','village','town','area','size','type','kind','form','color','shape','sound','taste','smell','dream','plan','reason','result','effect','cause','purpose','goal','future','past','present'], {t:'NN'});
 reg(['sister','mother','father','brother','daughter','son','uncle','aunt'], {t:'NN'});
 reg(['english','indonesia','america','london','paris','jakarta','john','mary','monday','tuesday','wednesday','thursday','friday','saturday','sunday','january','february','march','april','may','june','july','august','september','october','november','december'], {t:'NNP'});
+reg(['james','charles','thomas','robert','william','david','michael','richard','joseph','daniel','paul','george','edward','henry','peter','andrew','mark','stephen','tom'], {t:'NNP'});
 reg(['good','bad','big','small','large','little','long','short','high','low','old','new','young','happy','sad','difficult','easy','important','beautiful','ugly','nice','kind','different','same','right','wrong','true','false','hot','cold','warm','cool','slow','soft','strong','weak','rich','poor','clean','dirty','full','empty','quick','tall','heavy','light','dark','bright','clear','safe','dangerous','interesting','boring','tired','hungry','thirsty','sick','healthy','ready','busy','free','sure','main','only','real','simple','common','possible','impossible','necessary','useful','careful','angry','glad','sorry','proud','afraid','lucky','unlucky','smart','clever','stupid','funny','serious','quiet','loud','expensive','cheap','modern','ancient','famous','popular'], {t:'JJ'});
 reg(['fast','hard','late','early','far'], {t:'JJ',amb:['RB']});
 reg(['one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','twenty','thirty','forty','fifty','hundred','thousand','million','billion','first','second','third','fourth','fifth'], {t:'CD'});
 reg(['oh','wow','hey','hi','hello','yes','okay','ok'], {t:'UH'});
 
-/* [W2] Jamak tak beraturan + kata berakhiran -s yang tunggal */
 reg(['children','people','men','women','feet','teeth','mice','geese','oxen'], {t:'NNS', num:'pl'});
 reg('news', {t:'NN'});
+reg(['mathematics','physics','politics','economics','statistics','linguistics','athletics','gymnastics','measles','mumps','rabies','ethics','diabetes'], {t:'NN'});
+const NUMBER_INVARIANT = new Set(['sheep','fish','deer','moose','aircraft','series','species','offspring','means']);
 
 /* ============================================================
    2. IRREGULAR VERBS
@@ -450,8 +533,6 @@ const IRREG = {
   woken:{lemma:'wake',tag:'VBN',form:'V3'}
 };
 
-/* [W3] Kata kerja yang bentuk V2 == V3 (lampau == past participle).
-   Saat muncul setelah have/be, tag-nya harus VBN, bukan VBD. */
 const V2_EQ_V3 = new Set([
   'left','said','told','brought','bought','caught','taught','thought',
   'found','held','lost','won','sat','stood','built','got','slept','read'
@@ -544,8 +625,6 @@ const isVerbWord = w => {
   return /^VB/.test(e.t) || (e.amb && e.amb.includes('VB'));
 };
 
-/* [W1.1] stemS diperbaiki: prioritaskan buang 's' saja (bukan 'es').
-   Contoh: 'uses' harus → 'use' bukan 'us' (yang juga ada di LEX sebagai PRP). */
 function stemS(w) {
   if (!w || w.length < 3) return w;
   const inLex = s => !!(LEX[s] || IRREG[s]);
@@ -634,14 +713,17 @@ function tagOne(tokens, i) {
   }
   if (IRREG[w]) {
     const ir = IRREG[w];
-    /* [W3] V2==V3 (left/said/told/...) setelah have/be → VBN,
-       bukan VBD. Menghilangkan false positive "v3". */
-    const afterHave = prev && prev.lemma === 'have' && prev.aux;
-    const afterBe   = prev && prev.lemma === 'be'   && prev.aux;
-    if (ir.tag === 'VBD' && V2_EQ_V3.has(w) && (afterHave || afterBe)) {
-      t.tag = 'VBN'; t.lemma = ir.lemma; t.form = 'V3';
-      if (ir.amb) t.amb = ir.amb.slice();
-      return;
+    if (ir.tag === 'VBD' && V2_EQ_V3.has(w)) {
+      let k = i - 1;
+      while (k >= 0 && tokens[k].tag === 'RB') k--;
+      const before = k >= 0 ? tokens[k] : null;
+      const afterHave = before && before.lemma === 'have' && before.aux;
+      const afterBe   = before && before.lemma === 'be'   && before.aux;
+      if (afterHave || afterBe) {
+        t.tag = 'VBN'; t.lemma = ir.lemma; t.form = 'V3';
+        if (ir.amb) t.amb = ir.amb.slice();
+        return;
+      }
     }
     t.tag = ir.tag; t.lemma = ir.lemma; t.form = ir.form;
     if (ir.amb) t.amb = ir.amb.slice();
@@ -654,7 +736,6 @@ function tagOne(tokens, i) {
     return;
   }
   if (w.length > 4 && w.endsWith('ed')) {
-    /* [W1.1] Mundur melewati 'not' agar "hasn't finished" tetap VBN, bukan VBD. */
     let k = i - 1;
     while (k >= 0 && tokens[k].tag === 'RB' && tokens[k].lemma === 'not') k--;
     const before = k >= 0 ? tokens[k] : null;
@@ -677,24 +758,19 @@ function tagOne(tokens, i) {
   if (w.length > 4 && /(tion|sion|ment|ness|ity|ance|ence|ship|hood|dom|ism)$/.test(w)) { t.tag = 'NN'; t.lemma = w; return; }
   if (w.length > 4 && /(ful|ous|ive|able|ible|ical|ic|al)$/.test(w)) { t.tag = 'JJ'; t.lemma = w; return; }
 
-  /* [W2] Fallback MD hanya untuk kata OOV. Sengaja di bawah suffix rule
-     supaya "can goes/played/eating" tetap VBZ/VBD/VBG → validator bisa flag. */
   if (prevTag === 'MD') { t.tag = 'VB'; t.lemma = w; t.form = 'V1'; return; }
   if (prevTag === 'DT' || prevTag === 'PRP$' || prevTag === 'CC' || prevTag === 'IN' || prevTag === 'JJ') { t.tag = 'NN'; t.lemma = w; return; }
   if (prevTag === 'TO') { t.tag = 'VB'; t.lemma = w; t.form = 'V1'; return; }
   t.tag = 'NN'; t.lemma = w; t.unknown = true;
 }
 
-/* [W4] Strictly O(n): precompute nextNonNot, lalu single pass. */
 function markAux(tokens) {
   const n = tokens.length;
-  const nextNonNot = computeNextNonNot(tokens);
   for (let i = 0; i < n; i++) {
     const t = tokens[i];
     if (t.tag === 'MD') { t.aux = true; continue; }
     if (t.lemma === 'be' || t.lemma === 'do' || t.lemma === 'have') {
-      const j = nextNonNot[i];
-      t.aux = j < n && VERB_TAGS.has(tokens[j].tag);
+      t.aux = findVerbAfterAux(tokens, i) > 0;
     } else t.aux = false;
   }
 }
@@ -725,9 +801,6 @@ function detectNP(tokens, i) {
   return head ? { start: i, end: j - 1 } : null;
 }
 
-/* [W4] Defensive: pastikan spans terurut by start dan tidak overlap.
-   No-op pada chunker saat ini (tiap branch menaikkan i melampaui span),
-   tapi mencegah regresi bila branch baru ditambahkan di masa depan. */
 function normalizeSpans(spans) {
   if (spans.length <= 1) return spans;
   const sorted = spans.slice().sort((a, b) => a.start - b.start || b.end - a.end);
@@ -792,9 +865,11 @@ function chunk(tokens) {
 /* ============================================================
    6. STRUCTURE ANALYZER
    ============================================================ */
-/* [W2] Pecah kalimat jadi klausa: titik/tanya/seru, CC setelah ada verb,
-   atau subordinator "that"/"because" yang diikuti subjek. */
-const CLAUSE_SUBORDINATORS = new Set(['that','because']);
+/* [W6] Perluas: IN subordinator umum + WRB mid-sentence */
+const CLAUSE_SUBORDINATORS = new Set([
+  'that','because','if','although','though','while','unless','since',
+  'after','before','until','whenever','whether'
+]);
 function splitClauses(tokens) {
   const clauses = [];
   let start = 0, seenVerb = false;
@@ -808,6 +883,11 @@ function splitClauses(tokens) {
       const after = tokens[i+1];
       if (after && /^(PRP|NN|NNS|NNP)$/.test(after.tag)) split = true;
     }
+    /* [W6] WRB subordinate (when/where/why) — hanya mid-sentence */
+    else if (t.tag === 'WRB' && seenVerb && i > start) {
+      const after = tokens[i+1];
+      if (after && /^(PRP|NN|NNS|NNP)$/.test(after.tag)) split = true;
+    }
     if (split) {
       if (i - 1 >= start) clauses.push({start, end: i - 1});
       start = i + 1;
@@ -818,7 +898,6 @@ function splitClauses(tokens) {
   return clauses.filter(c => c.start <= c.end);
 }
 
-/* [W2] analyzeStructure menerima rangeStart/rangeEnd opsional (backward compat). */
 function analyzeStructure(tokens, spans, rangeStart, rangeEnd) {
   if (rangeStart == null) rangeStart = 0;
   if (rangeEnd == null) rangeEnd = tokens.length - 1;
@@ -826,7 +905,9 @@ function analyzeStructure(tokens, spans, rangeStart, rangeEnd) {
   if (!vpSpans.length) return {vps:[], subject:null, object:null, adverbials:[], range:{start:rangeStart, end:rangeEnd}};
   let vp = vpSpans[0], subject = null;
 
-  const startIsAux = vp.start === rangeStart && vp.end === vp.start && /^(MD|VBP|VBZ|VBD)$/.test(tokens[vp.start].tag);
+  let lead = rangeStart;
+  while (lead <= rangeEnd && /^(WRB|WP|WDT|WP\$|CC|UH)$/.test(tokens[lead].tag)) lead++;
+  const startIsAux = vp.start === lead && vp.end === vp.start && /^(MD|VBP|VBZ|VBD)$/.test(tokens[vp.start].tag);
   const nextIdx = vp.start + 1;
   const nextNPish = nextIdx <= rangeEnd && tokens[nextIdx] && /^(PRP|NN|NNS|NNP)$/.test(tokens[nextIdx].tag);
   if (startIsAux && nextNPish) {
@@ -840,10 +921,34 @@ function analyzeStructure(tokens, spans, rangeStart, rangeEnd) {
     }
   }
   if (!subject) {
-    let s = rangeStart, e = vp.start - 1;
-    while (s <= e && /^(RB|CC|UH)$/.test(tokens[s].tag)) s++;
-    while (e >= s && /^(RB|CC|UH)$/.test(tokens[e].tag)) e--;
-    subject = e >= s ? {start:s, end:e} : null;
+    /* [W6] Subjek berbasis last-NP chunk + CC-chain, filter NP didahului IN. */
+    const npSpans = spans.filter(s => s.type === 'NP' && s.end < vp.start && s.start >= rangeStart);
+    const validNPs = [];
+    for (const np of npSpans) {
+      const prev = np.start > 0 ? tokens[np.start - 1] : null;
+      if (prev && prev.tag === 'IN') continue;
+      validNPs.push(np);
+    }
+    if (validNPs.length) {
+      const lastNP = validNPs[validNPs.length - 1];
+      let startTok = lastNP.start;
+      let idx = validNPs.length - 1;
+      while (idx >= 1) {
+        const prevNP = validNPs[idx - 1];
+        let hasCCBetween = false;
+        for (let k = prevNP.end + 1; k < startTok; k++) {
+          if (tokens[k].tag === 'CC') { hasCCBetween = true; break; }
+        }
+        if (hasCCBetween) { startTok = prevNP.start; idx--; }
+        else break;
+      }
+      subject = {start: startTok, end: lastNP.end};
+    } else {
+      let s = rangeStart, e = vp.start - 1;
+      while (s <= e && /^(RB|CC|UH|PUNCT)$/.test(tokens[s].tag)) s++;
+      while (e >= s && /^(RB|CC|UH|PUNCT)$/.test(tokens[e].tag)) e--;
+      subject = e >= s ? {start:s, end:e} : null;
+    }
   }
   const ppSpans = spans.filter(s => s.type === 'PP' && s.start >= rangeStart && s.end <= rangeEnd);
   const inPP = sp => ppSpans.some(p => sp.start > p.start && sp.end <= p.end);
@@ -862,8 +967,6 @@ function detectTense(tokens, vp) {
   const L = verbs.map(v => v.lemma), T = verbs.map(v => v.tag);
   const N = verbs.length;
 
-  /* [W3] be + going to + V1 (future "be going to").
-     vp.end menunjuk VBG "going"; cek dua token sesudahnya. */
   const lastVerb = verbs[verbs.length - 1];
   if (L[0]==='be' && lastVerb.tag === 'VBG' && lastVerb.lemma === 'go') {
     const afterTo = tokens[vp.end + 1];
@@ -878,7 +981,6 @@ function detectTense(tokens, vp) {
     return T[0]==='VBD'
       ? {name:'Past Perfect Continuous', formula:'had + been + V-ing', span:vp, glossId:'past-perfect-continuous'}
       : {name:'Present Perfect Continuous', formula:'have/has + been + V-ing', span:vp, glossId:'present-perfect-continuous'};
-  /* [W3] have + been + VBN → perfect passive (dicek SEBELUM have + VBN) */
   if (L[0]==='have' && N>=3 && L[1]==='be' && T[2]==='VBN')
     return T[0]==='VBD'
       ? {name:'Past Perfect (Passive)', formula:'had + been + V3', span:vp, glossId:'passive-voice'}
@@ -902,7 +1004,6 @@ function detectTense(tokens, vp) {
     return {name:'Future Perfect', formula:'will + have + V3', span:vp, glossId:'future-perfect'};
   if (T[0]==='MD' && (L[0]==='will'||L[0]==='shall') && N>=3 && L[1]==='be' && T[2]==='VBG')
     return {name:'Future Continuous', formula:'will + be + V-ing', span:vp, glossId:'future-continuous'};
-  /* [W3] will + be + VBN → future passive */
   if (T[0]==='MD' && (L[0]==='will'||L[0]==='shall') && N>=3 && L[1]==='be' && T[2]==='VBN')
     return {name:'Simple Future (Passive)', formula:'will + be + V3', span:vp, glossId:'passive-voice'};
   if (T[0]==='MD' && (L[0]==='will'||L[0]==='shall') && N>=2 && T[1]==='VB')
@@ -911,13 +1012,10 @@ function detectTense(tokens, vp) {
     return {name:'Simple Past', formula:'did + V1 (untuk negatif/tanya)', span:vp, glossId:'negation'};
   if (L[0]==='do' && T[0]!=='VBD' && N>=2 && T[1]==='VB')
     return {name:'Simple Present', formula:'do/does + V1 (untuk negatif/tanya)', span:vp, glossId:'negation'};
-  /* [W3] modal + have + V3 → modal perfect (should have gone, must have left) */
   if (T[0]==='MD' && N>=3 && L[1]==='have' && T[2]==='VBN')
     return {name:'Modal Perfect', formula:'modal + have + V3', span:vp, glossId:'modal-construction'};
   if (T[0]==='MD' && N>=2 && T[1]==='VB')
     return {name:'Modal Construction', formula:'modal + V1', span:vp, glossId:'modal-construction'};
-  /* [W3] Copula dicek lebih awal — kalau L[0]==='be', pasti copula
-     (be + VBG/VBN sudah tertangkap branch di atas). */
   if (L[0]==='be')
     return T[0]==='VBD'
       ? {name:'Simple Past (copula)', formula:'was/were + pelengkap', span:vp, glossId:'copular-verb'}
@@ -935,67 +1033,89 @@ const detectGrammar = (tokens, spans) => spans.filter(s => s.type === 'VP').map(
 const AN_CONSONANT = /^(uni|use|user|usu|eu|one|once|ewe|ufo|utopia)/i;
 const A_VOWEL = /^(hour|honest|honor|honour|heir|herb|x-)/i;
 
-/* [W1.1] Kata kerja yang V1 == V3 (bentuk dasar == past participle).
-   "have let" / "have put" justru BENAR, jadi jangan di-flag sebagai v3 error. */
 const INVARIANT_PAST = new Set([
   'let','put','cut','hit','set','cost','hurt','shut','spread','quit',
   'read','burst','shed','split','sweat','thrust','rid','bet','knit','spit'
 ]);
 
-/* [W2] validate menerima array struktur (per klausa) atau satu struktur. */
 function validate(tokens, structureOrList) {
   const structures = Array.isArray(structureOrList) ? structureOrList : [structureOrList];
   const issues = [];
 
-  /* [W2] Cek S-V agreement per klausa */
   for (const structure of structures) {
-    if (structure && structure.subject && structure.vp) {
-      const last = tokens[structure.subject.end];
-      let is3sg = (last.tag === 'PRP' && ['he','she','it'].includes(last.text.toLowerCase())) || (last.tag === 'NN' || last.tag === 'NNP');
-      /* [W2] Subjek majemuk (mengandung CC) dianggap jamak */
-      const subjTokens = tokens.slice(structure.subject.start, structure.subject.end + 1);
-      if (subjTokens.some(t => t.tag === 'CC')) is3sg = false;
-      const vpTokens = tokens.slice(structure.vp.start, structure.vp.end + 1);
-      const main = vpTokens.filter(t => /^(VB|VBD|VBG|VBN|VBP|VBZ)$/.test(t.tag)).pop();
-      const hasModal = vpTokens.some(t => t.tag === 'MD');
-      const hasAux = vpTokens.some(t => t.aux || t.tag === 'MD');
-      if (main && !hasModal) {
-        if (main.tag === 'VBZ' && !is3sg && !hasAux) issues.push({level:'error', glossId:'subject-verb-agreement', msg:`Kata kerja "${main.text}" tidak cocok dengan pelakunya. Karena pelaku bukan "he", "she", atau "it", kata kerja ini tidak boleh pakai -s. Gunakan bentuk dasar (tanpa -s).`});
-        if ((main.tag === 'VBP' || main.tag === 'VB') && is3sg && !hasAux) issues.push({level:'error', glossId:'subject-verb-agreement', msg:`Kata kerja "${main.text}" tidak cocok dengan pelakunya. Karena pelakunya "he", "she", atau "it", kata kerja ini harus ditambah -s.`});
-      }
+    if (!structure || !structure.subject || !structure.vp) continue;
+    const subjTokens = tokens.slice(structure.subject.start, structure.subject.end + 1);
+    const hasCC = subjTokens.some(t => t.tag === 'CC');
+    let num = getSubjectNumber(tokens, structure.subject);
+    if (hasCC) num = 'other';
+    if (num === 'skip') continue;
+
+    const headIdx = findSubjectHead(tokens, structure.subject.start, structure.subject.end);
+    if (headIdx >= 0 && NUMBER_INVARIANT.has(tokens[headIdx].text.toLowerCase())) continue;
+
+    const vpTokens = tokens.slice(structure.vp.start, structure.vp.end + 1);
+    const hasModal = vpTokens.some(t => t.tag === 'MD');
+    if (hasModal) continue;
+
+    const finite = vpTokens.find(t => VERB_TAGS.has(t.tag));
+    if (!finite) continue;
+
+    const ftag = finite.tag;
+    const ftext = finite.text.toLowerCase();
+    const flemma = (finite.lemma || '').toLowerCase();
+    const is3sg = num === '3sg';
+
+    if (flemma === 'be') {
+      let ok;
+      if (num === '1sg') ok = (ftext === 'am' || ftext === 'was');
+      else if (num === '3sg') ok = (ftext === 'is' || ftext === 'was');
+      else ok = (ftext === 'are' || ftext === 'were');
+      if (!ok) issues.push({level:'error', glossId:'subject-verb-agreement', msg:`Kata bantu "${finite.text}" tidak cocok dengan pelakunya. Sesuaikan bentuk "be" (am/is/are atau was/were) dengan subjek.`});
+    } else if (flemma === 'have') {
+      if (is3sg && ftag === 'VBP') issues.push({level:'error', glossId:'subject-verb-agreement', msg:`Kata bantu "${finite.text}" tidak cocok. Untuk pelaku he/she/it, gunakan "has".`});
+      else if (!is3sg && ftag === 'VBZ') issues.push({level:'error', glossId:'subject-verb-agreement', msg:`Kata bantu "${finite.text}" tidak cocok. Untuk pelaku jamak (I/you/we/they), gunakan "have".`});
+    } else if (flemma === 'do') {
+      if (is3sg && ftag === 'VBP') issues.push({level:'error', glossId:'subject-verb-agreement', msg:`Kata bantu "${finite.text}" tidak cocok. Untuk pelaku he/she/it, gunakan "does".`});
+      else if (!is3sg && ftag === 'VBZ') issues.push({level:'error', glossId:'subject-verb-agreement', msg:`Kata bantu "${finite.text}" tidak cocok. Untuk pelaku jamak (I/you/we/they), gunakan "do".`});
+    } else if (ftag === 'VBZ') {
+      if (!is3sg) issues.push({level:'error', glossId:'subject-verb-agreement', msg:`Kata kerja "${finite.text}" tidak cocok dengan pelakunya. Karena pelaku bukan "he", "she", atau "it", kata kerja ini tidak boleh pakai -s. Gunakan bentuk dasar (tanpa -s).`});
+    } else if (ftag === 'VBP' || ftag === 'VB') {
+      if (is3sg) issues.push({level:'error', glossId:'subject-verb-agreement', msg:`Kata kerja "${finite.text}" tidak cocok dengan pelakunya. Karena pelakunya "he", "she", atau "it", kata kerja ini harus ditambah -s.`});
     }
   }
 
-  /* [W4] Strictly O(n): reuse precomputed nextNonNot. */
-  const nextNonNot = computeNextNonNot(tokens);
-  const skipNot = i => nextNonNot[i];
-
   tokens.forEach((t, i) => {
     if (t.tag === 'MD') {
-      const v = tokens[skipNot(i)];
-      /* [W2] VBP juga bentuk dasar (have/do tanpa -s) */
-      if (v && /^(VB|VBD|VBG|VBN|VBP|VBZ)$/.test(v.tag) && v.tag !== 'VB' && v.tag !== 'VBP')
-        issues.push({level:'error', glossId:'modal-verb', msg:`Setelah kata bantu "${t.text}" kata kerja harus dalam bentuk dasar (tanpa -s/-ed/-ing). Ubah "${v.text}" menjadi bentuk dasar.`});
-    }
-    if (t.lemma === 'do' && t.aux) {
-      const v = tokens[skipNot(i)];
-      if (v && /^(VB|VBD|VBG|VBN|VBP|VBZ)$/.test(v.tag) && v.tag !== 'VB')
-        issues.push({level:'error', glossId:'auxiliary-verb', msg:`Setelah kata bantu "${t.text}" kata kerja harus dalam bentuk dasar (tanpa -s/-ed/-ing). Ubah "${v.text}" menjadi bentuk dasar.`});
-    }
-    if (t.lemma === 'have' && t.aux) {
-      const v = tokens[skipNot(i)];
-      if (v && /^(VB|VBD|VBG|VBN|VBP|VBZ)$/.test(v.tag) && v.tag !== 'VBN' && v.tag !== 'VBG') {
-        /* [W1.1] Lewati invariant past participle (V1==V3): let, put, cut, ... */
-        const isInvariantPast = v.tag === 'VB' && INVARIANT_PAST.has(v.text.toLowerCase());
-        if (!isInvariantPast) {
-          issues.push({level:'error', glossId:'v3', msg:`Setelah have/has/had kata kerja harus dalam bentuk V3. Ubah "${v.text}" menjadi bentuk V3.`});
+      const vIdx = findVerbAfterAux(tokens, i);
+      if (vIdx > 0) {
+        const v = tokens[vIdx];
+        if (VERB_TAGS.has(v.tag) && v.tag !== 'VB' && v.tag !== 'VBP')
+          issues.push({level:'error', glossId:'modal-verb', msg:`Setelah kata bantu "${t.text}" kata kerja harus dalam bentuk dasar (tanpa -s/-ed/-ing). Ubah "${v.text}" menjadi bentuk dasar.`});
+      }
+    } else if (t.lemma === 'do' && t.aux) {
+      const vIdx = findVerbAfterAux(tokens, i);
+      if (vIdx > 0) {
+        const v = tokens[vIdx];
+        if (VERB_TAGS.has(v.tag) && v.tag !== 'VB')
+          issues.push({level:'error', glossId:'auxiliary-verb', msg:`Setelah kata bantu "${t.text}" kata kerja harus dalam bentuk dasar (tanpa -s/-ed/-ing). Ubah "${v.text}" menjadi bentuk dasar.`});
+      }
+    } else if (t.lemma === 'have' && t.aux) {
+      const vIdx = findVerbAfterAux(tokens, i);
+      if (vIdx > 0) {
+        const v = tokens[vIdx];
+        if (VERB_TAGS.has(v.tag) && v.tag !== 'VBN' && v.tag !== 'VBG') {
+          const isInvariantPast = v.tag === 'VB' && INVARIANT_PAST.has(v.text.toLowerCase());
+          if (!isInvariantPast) issues.push({level:'error', glossId:'v3', msg:`Setelah have/has/had kata kerja harus dalam bentuk V3. Ubah "${v.text}" menjadi bentuk V3.`});
         }
       }
-    }
-    if (t.lemma === 'be' && t.aux) {
-      const v = tokens[skipNot(i)];
-      if (v && /^(VB|VBD|VBG|VBN|VBP|VBZ)$/.test(v.tag) && v.tag !== 'VBG' && v.tag !== 'VBN')
-        issues.push({level:'error', glossId:'auxiliary-verb', msg:`Setelah be (am/is/are/was/were) kata kerja harus berbentuk V-ing (untuk aksi sedang berlangsung) atau V3 (untuk kalimat pasif). Ubah "${v.text}".`});
+    } else if (t.lemma === 'be' && t.aux) {
+      const vIdx = findVerbAfterAux(tokens, i);
+      if (vIdx > 0) {
+        const v = tokens[vIdx];
+        const adjLike = v.tag === 'VBD' && v.amb?.includes('JJ');
+        if (VERB_TAGS.has(v.tag) && v.tag !== 'VBG' && v.tag !== 'VBN' && !adjLike)
+          issues.push({level:'error', glossId:'auxiliary-verb', msg:`Setelah be (am/is/are/was/were) kata kerja harus berbentuk V-ing (untuk aksi sedang berlangsung) atau V3 (untuk kalimat pasif). Ubah "${v.text}".`});
+      }
     }
     if (t.tag === 'DT' && (t.text.toLowerCase() === 'a' || t.text.toLowerCase() === 'an')) {
       const next = tokens[i+1];
@@ -1346,7 +1466,6 @@ async function analyze(opts = {}) {
     await nextPaint();
     const spans = chunk(tokens);
     const grammar = detectGrammar(tokens, spans);
-    /* [W2] Pecah kalimat jadi klausa-klausa */
     const clauses = splitClauses(tokens);
     const structures = clauses.map(c => {
       const s = analyzeStructure(tokens, spans, c.start, c.end);
@@ -1356,7 +1475,6 @@ async function analyze(opts = {}) {
     await nextPaint();
     const issues = validate(tokens, structures);
     const structure = structures[0] || {vps:[], subject:null, object:null, adverbials:[]};
-    /* grammar penuh untuk wordFunction (frozen render tetap konsisten) */
     structure.grammar = grammar;
 
     STATE.tokens = tokens;
@@ -2250,7 +2368,7 @@ $('output').addEventListener('click', e => {
    23. TEST CORPUS
    ============================================================ */
 const TEST_CORPUS = [
-  /* ---- Kelompok A: harus PASS ---- */
+  /* ---- Kelompok A ---- */
   { group: 'A', s: 'She goes to school every day.', tense: ['Simple Present'], noIssue: ['subject-verb-agreement'] },
   { group: 'A', s: 'They are playing football now.', tense: ['Present Continuous'] },
   { group: 'A', s: 'The book was written by John.', tense: ['Simple Past (Passive)'] },
@@ -2272,7 +2390,7 @@ const TEST_CORPUS = [
   { group: 'A', s: "There's a book on the table." },
   { group: 'A', s: "He's gone to school.", tense: ['Present Perfect'] },
 
-  /* ---- Kelompok B: harus mendeteksi error ---- */
+  /* ---- Kelompok B ---- */
   { group: 'B', s: 'I goes to school.', issue: ['subject-verb-agreement'] },
   { group: 'B', s: 'I have went home.', issue: ['v3'] },
   { group: 'B', s: 'She is go to school.', issue: ['auxiliary-verb'] },
@@ -2280,12 +2398,12 @@ const TEST_CORPUS = [
   { group: 'B', s: 'He are happy.', issue: ['subject-verb-agreement'] },
   { group: 'B', s: 'I have eat rice.', issue: ['v3'] },
 
-  /* ---- Kelompok C: low-confidence ---- */
+  /* ---- Kelompok C ---- */
   { group: 'C', s: 'asdf qwer zxcv', notAnalyzable: true },
   { group: 'C', s: 'Saya makan nasi', notAnalyzable: true },
   { group: 'C', s: 'The the the', notAnalyzable: true },
 
-  /* ---- Kelompok D: dulu xfail W2, sekarang harus PASS ---- */
+  /* ---- Kelompok D ---- */
   { group: 'D', s: 'She can goes home.', issue: ['modal-verb'] },
   { group: 'D', s: 'She can played yesterday.', issue: ['modal-verb'] },
   { group: 'D', s: 'She can eating now.', issue: ['modal-verb'] },
@@ -2296,7 +2414,7 @@ const TEST_CORPUS = [
   { group: 'D', s: 'Tom and Mary plays tennis.', issue: ['subject-verb-agreement'] },
   { group: 'D', s: 'The news is good.', noIssue: ['subject-verb-agreement'] },
 
-  /* ---- Kelompok E: dulu xfail W3, sekarang harus PASS ---- */
+  /* ---- Kelompok E ---- */
   { group: 'E', s: 'She should have gone home.', tense: ['Modal'] },
   { group: 'E', s: 'He must have left.', tense: ['Modal'] },
   { group: 'E', s: 'She is going to buy a car.', tense: ['going to'] },
@@ -2304,12 +2422,60 @@ const TEST_CORPUS = [
   { group: 'E', s: 'The shop will be closed tomorrow.', tense: ['Passive'] },
   { group: 'E', s: 'She is a teacher.', tense: ['copula'] },
 
-  /* ---- Kelompok F: W4 chunk invariant + regression not/is going to ---- */
+  /* ---- Kelompok F ---- */
   { group: 'F', s: 'The man wearing a hat is my uncle.', chunkNoOverlap: true },
   { group: 'F', s: 'Reading books is fun.', chunkNoOverlap: true },
   { group: 'F', s: 'She has not been reading.', tense: ['Present Perfect Continuous'] },
   { group: 'F', s: 'She is not going to buy a car.', tense: ['going to'] },
-  { group: 'F', s: 'They will not have finished.', tense: ['Future Perfect'], chunkNoOverlap: true }
+  { group: 'F', s: 'They will not have finished.', tense: ['Future Perfect'], chunkNoOverlap: true },
+
+  /* ---- Kelompok G ---- */
+  { group: 'G', s: 'Does she like coffee?', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'Why does she go there?', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'Where does he live?', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'Does he goes home?', issue: ['auxiliary-verb'] },
+  { group: 'G', s: 'Can he swims?', issue: ['modal-verb'] },
+  { group: 'G', s: 'Did she went home?', issue: ['auxiliary-verb'] },
+  { group: 'G', s: 'She have gone.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'They has gone.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'She do not know.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'I does not know.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'I are happy.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'They was late.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'He were late.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: "He don't want coffee.", issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'The box of chocolates is expensive.', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'The books on the table are mine.', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'The list of items are long.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'The books on the table is mine.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'Reading is fun.', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'Swimming is good for health.', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'James likes music.', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'Mathematics is difficult.', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: "He hadn't left.", noIssue: ['v3'] },
+  { group: 'G', s: "She hasn't left.", noIssue: ['v3'] },
+  { group: 'G', s: "They haven't told us.", noIssue: ['v3'] },
+  { group: 'G', s: 'I have not left.', noIssue: ['v3'] },
+
+  /* ---- Kelompok H: W6 subordinate + adverb NP fronting + have-NP-V3 ---- */
+  { group: 'H', s: 'I know when he comes.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'I know when he come.', issue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'I know if he comes.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'I know if he come.', issue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'She sings while she works.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'She sings while she work.', issue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'I will call you when I arrive.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'Every day I go to school.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'Every day I goes to school.', issue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'Last week she walks to work.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'Last week she walk to work.', issue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'Yesterday she walks to school.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'Yesterday she walk to school.', issue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'Yesterday, she walk to school.', issue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'In the morning she walks to work.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'She has money left.', noIssue: ['v3'] },
+  { group: 'H', s: 'She has left money.', noIssue: ['v3'] },
+  { group: 'H', s: 'She has went home.', issue: ['v3'] }
 ];
 
 function runOneTest(tc) {
@@ -2317,7 +2483,6 @@ function runOneTest(tc) {
   tagAll(tokens);
   const spans = chunk(tokens);
   const grammar = detectGrammar(tokens, spans);
-  /* [W2] Pipeline baru: pecah jadi klausa, validasi per klausa */
   const clauses = splitClauses(tokens);
   const structures = clauses.map(c => {
     const s = analyzeStructure(tokens, spans, c.start, c.end);
@@ -2332,7 +2497,6 @@ function runOneTest(tc) {
 
   const fails = [];
 
-  /* [W4] Invariant: chunk spans harus terurut & tidak overlap. */
   if (tc.chunkNoOverlap) {
     const sorted = spans.slice().sort((a, b) => a.start - b.start);
     for (let k = 1; k < sorted.length; k++) {
