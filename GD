@@ -1,35 +1,3 @@
-<!--
-═══════════════════════════════════════════════════════════════════════
-KONTRAK VERIFIKASI v1.6.0 — KUNCI PENGINGAT SEBELUM EDIT APA PUN
-═══════════════════════════════════════════════════════════════════════
-[1] SETIAP EDIT, cek:
-    - Semua id HTML yang diquery JS ada di DOM
-    - Semua class CSS yang dipakai HTML terdefinisi
-    - Semua fungsi yang direferensikan event handler punya deklarasi
-    - Setiap entry GRAMMAR_GLOSSARY punya: id, name, category, definition
-    - Setiap glossId di detectTense ada di GRAMMAR_GLOSSARY
-    - Setiap TAG_TO_GLOSSARY value ada di GRAMMAR_GLOSSARY
-    - Setiap PHRASE_TO_GLOSSARY value ada di GRAMMAR_GLOSSARY
-
-[2] SEBELUM output, jalankan "Run Tests" (di halaman Settings).
-    Target W6: 93 pass · 0 fail · 0 xfail.
-
-[3] SCOPE GELOMBANG 6 (patch ini) — revisi scope W6:
-    ✅ splitClauses: perluas CLAUSE_SUBORDINATORS (if/while/although/...)
-    ✅ splitClauses: tangani WRB mid-sentence (when/where/why)
-    ✅ analyzeStructure: subjek berbasis last-NP chunk + CC-chain
-    ✅ analyzeStructure: filter NP yang didahului IN (bagian dari PP)
-    ✅ analyzeStructure: trim PUNCT di subjek fallback
-    ✅ test corpus: Kelompok H (18 test subordinate + fronting + have-NP-V3)
-    ❌ JANGAN sentuh: detectTense, render*
-
-[4] FORMAT OUTPUT:
-    1 file HTML standalone · CSS+JS inline · versi di <title>
-
-[5] GELOMBANG BERIKUT (catatan, JANGAN diimplementasi sekarang):
-    W7: klausa relatif (split WP/WDT), optimasi pipeline klausa (interval tree)
-═══════════════════════════════════════════════════════════════════════
--->
 <!DOCTYPE html>
 <html lang="id">
 <head>
