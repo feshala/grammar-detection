@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Grammar Formula Highlighter — v1.7.1 (W7-A.1 patched)</title>
+<title>Grammar Formula Highlighter</title>
 <style>
   *{box-sizing:border-box}
   :root{--bg:#fafafa;--fg:#222;--muted:#888;--line:#e2e2e2;--panel:#fff;--accent:#4a6ee0;--accent-bg:#eef3ff;--nav-h:68px;--ok:#2e8b57;--fail:#d9534f;--xfail:#e0a800}
@@ -244,8 +244,8 @@
     <p>Halaman pengaturan aplikasi. Pengaturan tambahan akan tersedia di bagian ini pada versi mendatang.</p>
   </div>
   <div class="settings-card">
-    <h3>Test Suite (Gelombang 7-A.1)</h3>
-    <p style="margin-bottom:12px">Jalankan korpus uji regresi untuk memverifikasi patch. Target: <code>109 pass · 0 fail · 0 xfail</code>. xfail adalah test yang sengaja ditandai gagal sampai gelombang berikutnya.</p>
+    <h3>Test Suite (Gelombang 8)</h3>
+    <p style="margin-bottom:12px">Jalankan korpus uji regresi. Target: <code>132 pass · 0 fail · 0 xfail</code>. xfail adalah test yang sengaja ditandai gagal sampai gelombang berikutnya.</p>
     <button class="test-btn" id="run-tests" type="button">▶ Run Tests</button>
     <div id="test-panel" hidden style="margin-top:16px"></div>
   </div>
@@ -312,20 +312,19 @@
    KONTRAK VERIFIKASI — versi JS (grep target: "_CONTRACT")
    ============================================================ */
 const _CONTRACT = {
-  version: '1.7.1',
-  wave: 'W7-A.1',
+  version: '2.0.0',
+  wave: 'W8',
   scope: [
-    'tagOne: suffix rule set uncertain=false saat stem match LEX/IRREG',
-    'analyzeStructure: subject extend ke NP setelah "of" untuk quantifier head',
-    'validate: subjunctive check dalam subject span',
-    'validate: subjText diperluas ke vp.start',
-    'test corpus: koreksi expectation professor + tambah A peculiar cat'
+    'LEX: agree/discuss/marry/married/more',
+    'detectTransferPatterns: to+V-ing, more+JJR, be+agree, discuss about, married with',
+    'validate: panggil detectTransferPatterns',
+    'GRAMMAR_GLOSSARY: kategori transfer + 5 entri baru',
+    'test corpus: Kelompok L (13 test)'
   ],
   frozen: ['detectTense','chunk','render*'],
-  target: '109 pass · 0 fail · 0 xfail',
+  target: '132 pass · 0 fail · 0 xfail',
   nextWave: {
-    W7B: 'klausa relatif (split WP/WDT), oracle tense pakai exact match',
-    W8: 'L1 transfer patterns (to+ing, am+agree, more+er)'
+    W9: 'since+for duration, one-of agreement, explain-to-me, missing-article'
   }
 };
 
@@ -466,14 +465,13 @@ reg('news', {t:'NN'});
 reg(['mathematics','physics','politics','economics','statistics','linguistics','athletics','gymnastics','measles','mumps','rabies','ethics','diabetes'], {t:'NN'});
 const NUMBER_INVARIANT = new Set(['sheep','fish','deer','moose','aircraft','series','species','offspring','means']);
 
-/* [W7-A] Suffix collision blacklist */
 reg(['friendly','lonely','lovely','silly','ugly','holy','likely','unlikely','early','daily','weekly','monthly','yearly'], {t:'JJ'});
 reg(['order','other','paper','matter','member','layer','banner','proper','tender','sober','eager'], {t:'NN'});
 reg(['suggest','request','interest','invest','protest','arrest','harvest','digest','manifest','forest'], {t:'VB',amb:['NN']});
-reg(['reply','apply','supply','multiply','imply','comply','rely','deny','identify','qualify','modify','specify','verify','justify','satisfy','clarify','classify','occupy','study'], {t:'VB'});
+reg(['apply','multiply','imply','comply','rely','deny','identify','qualify','modify','specify','verify','justify','satisfy','clarify','classify','occupy'], {t:'VB'});
+reg(['reply','supply','study'], {t:'VB',amb:['NN']});
 reg('forest', {t:'NN'});
 
-/* [W7-A] Uncountable */
 reg(['advice','information','furniture','equipment','luggage','baggage','traffic','weather','knowledge','research','progress','permission'], {t:'NN'});
 const UNCOUNTABLE = new Set([
   'advice','homework','information','furniture','equipment','luggage','baggage',
@@ -482,6 +480,11 @@ const UNCOUNTABLE = new Set([
   'money','music','bread','water','milk','coffee','tea','food','fruit',
   'news','work','help','fun','luck','hope','peace','patience'
 ]);
+
+/* [W8] Kata kunci untuk pola transfer L1. */
+reg('more', {t:'RB', amb:['JJR']});
+reg(['agree','discuss','marry'], {t:'VB', form:'V1'});
+reg('married', {t:'JJ'});
 
 /* ============================================================
    2. IRREGULAR VERBS
@@ -629,14 +632,10 @@ function stemEd(w) {
   if (w.endsWith('ied')) return w.slice(0, -3) + 'y';
   if (w.endsWith('ed')) {
     const inLex = s => !!(LEX[s] || IRREG[s]);
-    const noEd = w.slice(0, -2);   /* buang "-ed" */
-    const noD  = w.slice(0, -1);   /* buang "-d" saja */
-    /* [W7-A.2] Prioritas 1: "arrived" → "arrive", "used" → "use", "loved" → "love".
-       Coba buang "-d" saja; jika jadi valid word DAN buang "-ed" tidak valid, pakai noD. */
+    const noEd = w.slice(0, -2);
+    const noD  = w.slice(0, -1);
     if (inLex(noD) && !inLex(noEd)) return noD;
-    /* Prioritas 2: bentuk umum "walked" → "walk", "played" → "play", "finished" → "finish". */
     if (inLex(noEd)) return noEd;
-    /* Prioritas 3: double consonant "stopped" → "stop", "planned" → "plan". */
     if (noEd.length >= 2 && noEd[noEd.length-1] === noEd[noEd.length-2] && !/[aeiou]/.test(noEd[noEd.length-1])) {
       const shortened = noEd.slice(0, -1);
       if (inLex(shortened)) return shortened;
@@ -715,6 +714,9 @@ function tagOne(tokens, i) {
       const afterAux = prev && (prev.aux || prevTag === 'MD' || prevTag === 'TO');
       const afterSubj = prev && prevTag === 'PRP' && !(next && next.tag === 'PUNCT');
       if (afterAux || afterSubj) { t.tag = 'VB'; t.form = 'V1'; }
+    }
+    if (t.tag === 'VB' && t.amb?.includes('NN') && prevTag && /^(DT|PRP\$|JJ)$/.test(prevTag)) {
+      t.tag = 'NN'; t.form = null;
     }
     t.uncertain = false;
     return;
@@ -919,6 +921,13 @@ function analyzeStructure(tokens, spans, rangeStart, rangeEnd) {
   const vpSpans = spans.filter(s => s.type === 'VP' && s.start >= rangeStart && s.end <= rangeEnd);
   if (!vpSpans.length) return {vps:[], subject:null, object:null, adverbials:[], range:{start:rangeStart, end:rangeEnd}};
   let vp = vpSpans[0], subject = null;
+  {
+    let relStart = -1;
+    for (let j = rangeStart; j < vp.start; j++) {
+      if (tokens[j].tag === 'WP' || tokens[j].tag === 'WDT') { relStart = j; break; }
+    }
+    if (relStart >= 0 && vpSpans.length > 1) vp = vpSpans[1];
+  }
 
   let lead = rangeStart;
   while (lead <= rangeEnd && /^(WRB|WP|WDT|WP\$|CC|UH)$/.test(tokens[lead].tag)) lead++;
@@ -947,8 +956,6 @@ function analyzeStructure(tokens, spans, rangeStart, rangeEnd) {
       const lastNP = validNPs[validNPs.length - 1];
       let startTok = lastNP.start;
       let endTok = lastNP.end;
-      /* [W7-A.1] Jika lastNP berakhir dengan quantifier head diikuti PP("of X"),
-         perluas subject sampai NP setelah "of". */
       const nextTok = tokens[endTok + 1];
       if (nextTok && nextTok.tag === 'IN' && nextTok.text.toLowerCase() === 'of'
           && QUANTIFIER_HEADS.has(tokens[endTok].text.toLowerCase())) {
@@ -1061,6 +1068,36 @@ const INVARIANT_PAST = new Set([
   'read','burst','shed','split','sweat','thrust','rid','bet','knit','spit'
 ]);
 
+/* [W8] Pola khas pelajar Indonesia. Berbasis urutan token, bukan parse. */
+function detectTransferPatterns(tokens) {
+  const issues = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i], n = tokens[i+1];
+    if (!n) continue;
+    if (t.lemma === 'to' && n.tag === 'VBG') {
+      issues.push({level:'error', glossId:'transfer-to-ing',
+        msg:`Setelah "to" kata kerja harus dalam bentuk dasar (V1), bukan bentuk -ing. Ubah "${n.text}" menjadi bentuk dasar.`});
+    }
+    if ((t.lemma === 'more' || (t.tag === 'RB' && t.text.toLowerCase() === 'more')) && n.tag === 'JJR') {
+      issues.push({level:'error', glossId:'transfer-more-er',
+        msg:`"more" dan akhiran -er tidak dipakai bersamaan. Pilih salah satu: "more + kata sifat dasar" atau "kata sifat + -er".`});
+    }
+    if (t.lemma === 'be' && n.lemma === 'agree') {
+      issues.push({level:'error', glossId:'transfer-be-agree',
+        msg:`"agree" sudah kata kerja, tidak perlu didahului "be". Cukup gunakan "agree" (atau "agrees" untuk he/she/it).`});
+    }
+    if (t.lemma === 'discuss' && n.lemma === 'about') {
+      issues.push({level:'error', glossId:'transfer-discuss-about',
+        msg:`"discuss" langsung diikuti objeknya, tanpa "about". Contoh: "discuss the topic", bukan "discuss about the topic".`});
+    }
+    if (t.lemma === 'married' && n.lemma === 'with') {
+      issues.push({level:'error', glossId:'transfer-married-with',
+        msg:`"married" diikuti "to", bukan "with". Contoh: "married to him", bukan "married with him".`});
+    }
+  }
+  return issues;
+}
+
 function validate(tokens, structureOrList) {
   const structures = Array.isArray(structureOrList) ? structureOrList : [structureOrList];
   const issues = [];
@@ -1088,7 +1125,6 @@ function validate(tokens, structureOrList) {
     const flemma = (finite.lemma || '').toLowerCase();
     const is3sg = num === '3sg';
 
-    /* [W7-A.1] subjText diperluas ke vp.start (exclusive). */
     const subjText = tokens.slice(structure.subject.start, structure.vp.start)
       .filter(t => t.tag !== 'PUNCT' && t.tag !== 'CC')
       .map(t => t.text).join(' ');
@@ -1099,7 +1135,6 @@ function validate(tokens, structureOrList) {
         if (tokens[k].tag === 'IN' && tokens[k].text.toLowerCase() === 'if') { isSubjunctive = true; break; }
         if (!/^(RB|CC|UH|PUNCT)$/.test(tokens[k].tag)) break;
       }
-      /* [W7-A.1] Jika "if" tertelan ke dalam subject span (mis. "If I"), periksa juga. */
       if (!isSubjunctive) {
         for (let k = structure.subject.start; k <= structure.subject.end; k++) {
           if (tokens[k].tag === 'IN' && tokens[k].text.toLowerCase() === 'if') { isSubjunctive = true; break; }
@@ -1175,6 +1210,10 @@ function validate(tokens, structureOrList) {
       }
     }
   });
+
+  /* [W8] Pola transfer L1. */
+  const transferIssues = detectTransferPatterns(tokens);
+  for (const ti of transferIssues) issues.push(ti);
 
   if (!issues.length) {
     const meaningful = tokens.filter(t => t.tag !== 'PUNCT');
@@ -1565,14 +1604,15 @@ const PHRASE_TO_GLOSSARY = {
 const FORM_TO_GLOSSARY = {'V1':'v1','V2':'v2','V3':'v3','V-ing':'v-ing','V-s':'v-s'};
 
 /* ============================================================
-   18. GRAMMAR GLOSSARY — 60 entri
+   18. GRAMMAR GLOSSARY — 65 entri (60 + 5 W8)
    ============================================================ */
 const GLOSSARY_CATEGORIES = [
   {id:'pos', name:'Jenis Kata'},
   {id:'phrase', name:'Kelompok Kata'},
   {id:'sentence', name:'Bagian Kalimat'},
   {id:'tense', name:'Waktu & Konstruksi'},
-  {id:'verbform', name:'Bentuk Kata Kerja'}
+  {id:'verbform', name:'Bentuk Kata Kerja'},
+  {id:'transfer', name:'Pola Transfer (L1)'}
 ];
 
 const GRAMMAR_GLOSSARY = {
@@ -2152,7 +2192,65 @@ const GRAMMAR_GLOSSARY = {
       {kalimat:'The soup <u>tastes</u> delicious.', catatan:'"tastes" menghubungkan sup dengan rasanya.'}
     ],
     perbedaan:'Kata kerja penghubung diikuti pelengkap (kata sifat/benda), bukan objek.',
-    related:['subject-complement','main-verb','auxiliary']}
+    related:['subject-complement','main-verb','auxiliary']},
+
+  /* [W8] Pola transfer L1 */
+  'transfer-to-ing': {id:'transfer-to-ing', name:'to + V-ing (pola keliru)', abbr:'to + V-ing', category:'transfer',
+    definition:'Pola keliru: "to" diikuti kata kerja bentuk -ing. Dalam bahasa Indonesia, "untuk" bisa diikuti kata kerja apa saja, sehingga pelajar sering menulis "to reading" alih-alih "to read" atau "reading".',
+    fungsi:'Pengingat bahwa setelah "to" sebagai penanda kata kerja dasar, kata kerja harus dalam bentuk V1 (bentuk kamus).',
+    identifikasi:'Lihat "to" yang langsung diikuti kata kerja berakhiran -ing.',
+    rumus:'SALAH: to + V-ing → BENAR: to + V1 (atau V-ing tanpa "to")',
+    contoh:[
+      {kalimat:'SALAH: I like <u>to reading</u> books.', catatan:'Setelah "to", gunakan V1: "I like to read books", atau tanpa "to": "I like reading books".'},
+      {kalimat:'BENAR: She wants <u>to study</u>.', catatan:'"to" + V1 "study".'}
+    ],
+    perbedaan:'"to" penanda kata kerja dasar selalu diikuti V1. "to" sebagai kata depan bisa diikuti V-ing (mis. "look forward to seeing"), tapi untuk pelajar A2/B1, "to + V1" adalah aturan yang aman.',
+    related:['infinitive','infinitive-marker','v-ing','v1']},
+  'transfer-more-er': {id:'transfer-more-er', name:'more + -er (pola keliru)', abbr:'more + JJR', category:'transfer',
+    definition:'Pola keliru: "more" dan akhiran -er dipakai bersamaan untuk membentuk perbandingan. Dalam bahasa Indonesia, "lebih" bisa digabung dengan kata sifat apapun, sehingga pelajar sering menulis "more taller" alih-alih "taller".',
+    fungsi:'Pengingat bahwa perbandingan bahasa Inggris memakai salah satu saja: "more + kata sifat" atau "kata sifat + -er".',
+    identifikasi:'Lihat "more" yang langsung diikuti kata sifat berakhiran -er.',
+    rumus:'SALAH: more + kata sifat + -er → BENAR: more + kata sifat ATAU kata sifat + -er',
+    contoh:[
+      {kalimat:'SALAH: He is <u>more taller</u> than me.', catatan:'Pilih satu: "taller than me" atau "more tall than me" (yang pertama lebih lazim).'},
+      {kalimat:'BENAR: She is <u>more beautiful</u>.', catatan:'Kata sifat panjang (≥3 suku kata) pakai "more".'},
+      {kalimat:'BENAR: He is <u>taller</u>.', catatan:'Kata sifat pendek pakai akhiran -er.'}
+    ],
+    perbedaan:'Kata sifat pendek (tall, big, fast) pakai -er/-est. Kata sifat panjang (beautiful, expensive) pakai more/most. Tidak boleh digabung.',
+    related:['adjective','transfer-be-agree']},
+  'transfer-be-agree': {id:'transfer-be-agree', name:'be + agree (pola keliru)', abbr:'be + agree', category:'transfer',
+    definition:'Pola keliru: menambahkan "be" (am/is/are) di depan kata kerja "agree". Dalam bahasa Indonesia, "setuju" adalah kata sifat sehingga wajar didahului "adalah"; dalam bahasa Inggris, "agree" adalah kata kerja sehingga langsung menjadi predikat.',
+    fungsi:'Pengingat bahwa "agree" sudah kata kerja, tidak perlu kata bantu "be" di depannya.',
+    identifikasi:'Lihat "am/is/are/was/were" yang langsung diikuti "agree".',
+    rumus:'SALAH: be + agree → BENAR: agree / agrees',
+    contoh:[
+      {kalimat:'SALAH: I <u>am agree</u> with you.', catatan:'Cukup "I agree with you".'},
+      {kalimat:'BENAR: She <u>agrees</u> with me.', catatan:'Untuk he/she/it, "agree" ditambah -s.'}
+    ],
+    perbedaan:'Kata kerja langsung menjadi predikat: "I agree", "She agrees". Kata sifat butuh "be": "I am happy", "She is ready".',
+    related:['verb','copular-verb','subject-verb-agreement']},
+  'transfer-discuss-about': {id:'transfer-discuss-about', name:'discuss about (pola keliru)', abbr:'discuss about', category:'transfer',
+    definition:'Pola keliru: "discuss" diikuti "about". Dalam bahasa Indonesia, "membahas tentang" wajar dipakai; dalam bahasa Inggris, "discuss" adalah kata kerja transitif sehingga langsung diikuti objeknya.',
+    fungsi:'Pengingat bahwa "discuss" langsung diikuti objeknya, tanpa preposisi.',
+    identifikasi:'Lihat "discuss" yang langsung diikuti "about".',
+    rumus:'SALAH: discuss about + objek → BENAR: discuss + objek',
+    contoh:[
+      {kalimat:'SALAH: We <u>discuss about</u> the topic.', catatan:'Cukup "We discuss the topic".'},
+      {kalimat:'BENAR: They <u>discussed</u> the plan.', catatan:'"discuss" langsung diikuti objeknya.'}
+    ],
+    perbedaan:'Kalau mau pakai "about", ganti "discuss" jadi "talk": "talk about the topic". Tapi "discuss" sendiri tidak butuh preposisi.',
+    related:['preposition','verb','transfer-married-with']},
+  'transfer-married-with': {id:'transfer-married-with', name:'married with (pola keliru)', abbr:'married with', category:'transfer',
+    definition:'Pola keliru: "married" diikuti "with". Dalam bahasa Indonesia, "menikah dengan" selalu pakai "dengan"; dalam bahasa Inggris, "married" diikuti "to".',
+    fungsi:'Pengingat bahwa pasangan tetap "married to", bukan "married with".',
+    identifikasi:'Lihat "married" yang langsung diikuti "with".',
+    rumus:'SALAH: married with + orang → BENAR: married to + orang',
+    contoh:[
+      {kalimat:'SALAH: She is <u>married with</u> him.', catatan:'Gunakan "married to him".'},
+      {kalimat:'BENAR: He is <u>married to</u> my sister.', catatan:'"married to" + orang.'}
+    ],
+    perbedaan:'"Married to" untuk pasangan pernikahan. "Married with" tidak ada dalam bahasa Inggris standar untuk konteks ini.',
+    related:['preposition','transfer-discuss-about']}
 };
 
 /* ============================================================
@@ -2461,18 +2559,18 @@ const TEST_CORPUS = [
   { group: 'D', s: 'The news is good.', noIssue: ['subject-verb-agreement'] },
 
   /* Kelompok E */
-  { group: 'E', s: 'She should have gone home.', tense: ['Modal'] },
-  { group: 'E', s: 'He must have left.', tense: ['Modal'] },
-  { group: 'E', s: 'She is going to buy a car.', tense: ['going to'] },
-  { group: 'E', s: 'The letter has been written.', tense: ['Passive'] },
-  { group: 'E', s: 'The shop will be closed tomorrow.', tense: ['Passive'] },
-  { group: 'E', s: 'She is a teacher.', tense: ['copula'] },
+  { group: 'E', s: 'She should have gone home.', tense: ['Modal Perfect'] },
+  { group: 'E', s: 'He must have left.', tense: ['Modal Perfect'] },
+  { group: 'E', s: 'She is going to buy a car.', tense: ['Be going to (Future)'] },
+  { group: 'E', s: 'The letter has been written.', tense: ['Present Perfect (Passive)'] },
+  { group: 'E', s: 'The shop will be closed tomorrow.', tense: ['Simple Future (Passive)'] },
+  { group: 'E', s: 'She is a teacher.', tense: ['Simple Present (copula)'] },
 
   /* Kelompok F */
   { group: 'F', s: 'The man wearing a hat is my uncle.', chunkNoOverlap: true },
   { group: 'F', s: 'Reading books is fun.', chunkNoOverlap: true },
   { group: 'F', s: 'She has not been reading.', tense: ['Present Perfect Continuous'] },
-  { group: 'F', s: 'She is not going to buy a car.', tense: ['going to'] },
+  { group: 'F', s: 'She is not going to buy a car.', tense: ['Be going to (Future)'] },
   { group: 'F', s: 'They will not have finished.', tense: ['Future Perfect'], chunkNoOverlap: true },
 
   /* Kelompok G */
@@ -2523,7 +2621,7 @@ const TEST_CORPUS = [
   { group: 'H', s: 'She has left money.', noIssue: ['v3'] },
   { group: 'H', s: 'She has went home.', issue: ['v3'] },
 
-  /* Kelompok I: W7-A + W7-A.1 */
+  /* Kelompok I */
   { group: 'I', s: 'She goes to school every day.', verdict: 'clean' },
   { group: 'I', s: 'The professor presented glorious unfamiliar theories about quantum entanglement to skeptical colleagues yesterday.', verdict: 'abstain' },
   { group: 'I', s: 'A peculiar cat arrived.', verdict: 'hedged' },
@@ -2539,7 +2637,37 @@ const TEST_CORPUS = [
   { group: 'I', s: 'The order is ready.', noIssue: ['subject-verb-agreement'] },
   { group: 'I', s: 'Many informations are useful.', msgContains: ['uncountable'] },
   { group: 'I', s: 'Some advice is useful.', noIssue: ['subject-verb-agreement'] },
-  { group: 'I', s: 'The books on the table is mine.', msgContains: ['The books on the table'] }
+  { group: 'I', s: 'The books on the table is mine.', msgContains: ['The books on the table'] },
+
+  /* Kelompok J */
+  { group: 'J', s: 'The students who study hard pass the exam.', noIssue: ['subject-verb-agreement'] },
+  { group: 'J', s: 'The students who study hard passes the exam.', issue: ['subject-verb-agreement'] },
+  { group: 'J', s: 'The book which I bought yesterday was expensive.', noIssue: ['subject-verb-agreement'] },
+  { group: 'J', s: 'The book which I bought yesterday were expensive.', issue: ['subject-verb-agreement'] },
+
+  /* Kelompok K */
+  { group: 'K', s: 'The study was surprising.', noIssue: ['subject-verb-agreement'] },
+  { group: 'K', s: 'The results of the study was surprising.', issue: ['subject-verb-agreement'] },
+  { group: 'K', s: 'The results of the study were surprising.', noIssue: ['subject-verb-agreement'] },
+  { group: 'K', s: 'She studies English.', tense: ['Simple Present'], noIssue: ['subject-verb-agreement'] },
+  { group: 'K', s: 'The reply was quick.', noIssue: ['subject-verb-agreement'] },
+  { group: 'K', s: 'The supply is low.', noIssue: ['subject-verb-agreement'] },
+
+  /* Kelompok L: W8 transfer patterns */
+  { group: 'L', s: 'I like to reading books.', issue: ['transfer-to-ing'] },
+  { group: 'L', s: 'I want to eating rice.', issue: ['transfer-to-ing'] },
+  { group: 'L', s: 'She likes to reading.', issue: ['transfer-to-ing'] },
+  { group: 'L', s: 'He is more taller than me.', issue: ['transfer-more-er'] },
+  { group: 'L', s: 'I am agree.', issue: ['transfer-be-agree'] },
+  { group: 'L', s: 'She is agree.', issue: ['transfer-be-agree'] },
+  { group: 'L', s: 'We discuss about the topic.', issue: ['transfer-discuss-about'] },
+  { group: 'L', s: 'She is married with him.', issue: ['transfer-married-with'] },
+  { group: 'L', s: 'I like to read books.', noIssue: ['transfer-to-ing'] },
+  { group: 'L', s: 'I want to eat rice.', noIssue: ['transfer-to-ing'] },
+  { group: 'L', s: 'He is taller than me.', noIssue: ['transfer-more-er'] },
+  { group: 'L', s: 'I agree.', noIssue: ['transfer-be-agree'] },
+  { group: 'L', s: 'We discuss the topic.', noIssue: ['transfer-discuss-about'] },
+  { group: 'L', s: 'She is married to him.', noIssue: ['transfer-married-with'] }
 ];
 
 function runOneTest(tc) {
@@ -2573,8 +2701,8 @@ function runOneTest(tc) {
 
   if (tc.tense) {
     for (const exp of tc.tense) {
-      const match = tenseNames.some(n => n.toLowerCase().includes(exp.toLowerCase()));
-      if (!match) fails.push(`tense "${exp}" tidak ketemu; dapat [${tenseNames.join(', ') || '-'}]`);
+      const match = tenseNames.some(n => n === exp);
+      if (!match) fails.push(`tense "${exp}" tidak ketemu (exact); dapat [${tenseNames.join(', ') || '-'}]`);
     }
   }
   if (tc.issue) {
