@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Grammar Formula Highlighter</title>
+<title>Grammar Formula Highlighter — v2.1.0 (W9 patched)</title>
 <style>
   *{box-sizing:border-box}
   :root{--bg:#fafafa;--fg:#222;--muted:#888;--line:#e2e2e2;--panel:#fff;--accent:#4a6ee0;--accent-bg:#eef3ff;--nav-h:68px;--ok:#2e8b57;--fail:#d9534f;--xfail:#e0a800}
@@ -244,8 +244,8 @@
     <p>Halaman pengaturan aplikasi. Pengaturan tambahan akan tersedia di bagian ini pada versi mendatang.</p>
   </div>
   <div class="settings-card">
-    <h3>Test Suite (Gelombang 8)</h3>
-    <p style="margin-bottom:12px">Jalankan korpus uji regresi. Target: <code>132 pass · 0 fail · 0 xfail</code>. xfail adalah test yang sengaja ditandai gagal sampai gelombang berikutnya.</p>
+    <h3>Test Suite (Gelombang 9)</h3>
+    <p style="margin-bottom:12px">Jalankan korpus uji regresi. Target: <code>145 pass · 0 fail · 0 xfail</code>. xfail adalah test yang sengaja ditandai gagal sampai gelombang berikutnya.</p>
     <button class="test-btn" id="run-tests" type="button">▶ Run Tests</button>
     <div id="test-panel" hidden style="margin-top:16px"></div>
   </div>
@@ -312,8 +312,8 @@
    KONTRAK VERIFIKASI — versi JS (grep target: "_CONTRACT")
    ============================================================ */
 const _CONTRACT = {
-  version: '2.0.0',
-  wave: 'W8',
+  version: '2.1.0',
+  wave: 'W9',
   scope: [
     'LEX: agree/discuss/marry/married/more',
     'detectTransferPatterns: to+V-ing, more+JJR, be+agree, discuss about, married with',
@@ -322,7 +322,7 @@ const _CONTRACT = {
     'test corpus: Kelompok L (13 test)'
   ],
   frozen: ['detectTense','chunk','render*'],
-  target: '132 pass · 0 fail · 0 xfail',
+  target: '145 pass · 0 fail · 0 xfail',
   nextWave: {
     W9: 'since+for duration, one-of agreement, explain-to-me, missing-article'
   }
@@ -366,13 +366,17 @@ function findSubjectHead(tokens, start, end) {
     if (t.tag === 'IN') {
       if (t.text.toLowerCase() === 'of') {
         const prevT = i > 0 ? tokens[i-1] : null;
-        if (prevT && /^NN/.test(prevT.tag) && QUANTIFIER_HEADS.has(prevT.text.toLowerCase())) continue;
+        const beforeQuant = i-2 >= 0 ? tokens[i-2] : null;
+        const isDefinite = beforeQuant && beforeQuant.tag === 'DT' && beforeQuant.text.toLowerCase() === 'the';
+        if (prevT && /^NN/.test(prevT.tag) && QUANTIFIER_HEADS.has(prevT.text.toLowerCase()) && !isDefinite) continue;
       }
       return -1;
     }
     if (/^(NN|NNS|NNP|PRP)$/.test(t.tag)) {
       if (tokens[i+1] && tokens[i+1].tag === 'IN' && tokens[i+1].text.toLowerCase() === 'of' && QUANTIFIER_HEADS.has(t.text.toLowerCase())) {
-        continue;
+        const beforeQuant = i > 0 ? tokens[i-1] : null;
+        const isDefinite = beforeQuant && beforeQuant.tag === 'DT' && beforeQuant.text.toLowerCase() === 'the';
+        if (!isDefinite) continue;
       }
       return i;
     }
@@ -646,8 +650,19 @@ function stemEd(w) {
 }
 function stemIng(w) {
   let s = w.slice(0, -3);
-  if (s.length>=2 && s[s.length-1]===s[s.length-2] && !/[aeiou]/.test(s[s.length-1])) s = s.slice(0, -1);
-  if (s.length>=3 && !/[aeiou]$/.test(s)) { const g = s+'e'; if (LEX[g]) return g; }
+  const inLex = x => !!(LEX[x] || IRREG[x]);
+  /* [W9] Coba as-is dulu (call→calling, discuss→discussing). */
+  if (inLex(s)) return s;
+  /* Coba tambah silent-e (writ→write, mak→make). */
+  if (s.length>=3 && !/[aeiou]$/.test(s)) {
+    const g = s+'e';
+    if (inLex(g)) return g;
+  }
+  /* Terakhir, coba potong doubled consonant (runn→run, stopp→stop). */
+  if (s.length>=2 && s[s.length-1]===s[s.length-2] && !/[aeiou]/.test(s[s.length-1])) {
+    const cut = s.slice(0, -1);
+    if (inLex(cut)) return cut;
+  }
   return s;
 }
 
@@ -921,13 +936,11 @@ function analyzeStructure(tokens, spans, rangeStart, rangeEnd) {
   const vpSpans = spans.filter(s => s.type === 'VP' && s.start >= rangeStart && s.end <= rangeEnd);
   if (!vpSpans.length) return {vps:[], subject:null, object:null, adverbials:[], range:{start:rangeStart, end:rangeEnd}};
   let vp = vpSpans[0], subject = null;
-  {
-    let relStart = -1;
-    for (let j = rangeStart; j < vp.start; j++) {
-      if (tokens[j].tag === 'WP' || tokens[j].tag === 'WDT') { relStart = j; break; }
-    }
-    if (relStart >= 0 && vpSpans.length > 1) vp = vpSpans[1];
+  let relStart = -1;
+  for (let j = rangeStart; j < vp.start; j++) {
+    if (tokens[j].tag === 'WP' || tokens[j].tag === 'WDT') { relStart = j; break; }
   }
+  if (relStart >= 0 && vpSpans.length > 1) vp = vpSpans[1];
 
   let lead = rangeStart;
   while (lead <= rangeEnd && /^(WRB|WP|WDT|WP\$|CC|UH)$/.test(tokens[lead].tag)) lead++;
@@ -945,7 +958,9 @@ function analyzeStructure(tokens, spans, rangeStart, rangeEnd) {
     }
   }
   if (!subject) {
-    const npSpans = spans.filter(s => s.type === 'NP' && s.end < vp.start && s.start >= rangeStart);
+    /* [W9] Batas subjek = relativizer jika ada */
+    const subjBoundary = relStart >= 0 ? relStart : vp.start;
+    const npSpans = spans.filter(s => s.type === 'NP' && s.end < subjBoundary && s.start >= rangeStart);
     const validNPs = [];
     for (const np of npSpans) {
       const prev = np.start > 0 ? tokens[np.start - 1] : null;
@@ -975,7 +990,8 @@ function analyzeStructure(tokens, spans, rangeStart, rangeEnd) {
       subject = {start: startTok, end: endTok};
     } else {
       let s = rangeStart, e = vp.start - 1;
-      while (s <= e && /^(RB|CC|UH|PUNCT)$/.test(tokens[s].tag)) s++;
+      /* [W9] Lewati subordinator/relativizer/CC di awal klausa. */
+      while (s <= e && /^(RB|CC|UH|IN|WRB|WP|WDT|WP\$|PUNCT)$/.test(tokens[s].tag)) s++;
       while (e >= s && /^(RB|CC|UH|PUNCT)$/.test(tokens[e].tag)) e--;
       subject = e >= s ? {start:s, end:e} : null;
     }
@@ -1075,8 +1091,18 @@ function detectTransferPatterns(tokens) {
     const t = tokens[i], n = tokens[i+1];
     if (!n) continue;
     if (t.lemma === 'to' && n.tag === 'VBG') {
-      issues.push({level:'error', glossId:'transfer-to-ing',
-        msg:`Setelah "to" kata kerja harus dalam bentuk dasar (V1), bukan bentuk -ing. Ubah "${n.text}" menjadi bentuk dasar.`});
+      /* [W9] "to" preposisi (look forward to, used to, object to, ...) sah diikuti V-ing. */
+      const prevT = i > 0 ? tokens[i-1] : null;
+      const prev2T = i > 1 ? tokens[i-2] : null;
+      const prepPhrases = ['forward','used','object','accustomed','committed','opposed','dedicated'];
+      const isPrepTo = prevT && (
+        (prev2T && prepPhrases.includes(prev2T.text.toLowerCase())) ||
+        prepPhrases.includes(prevT.text.toLowerCase())
+      );
+      if (!isPrepTo) {
+        issues.push({level:'error', glossId:'transfer-to-ing',
+          msg:`Setelah "to" kata kerja harus dalam bentuk dasar (V1), bukan bentuk -ing. Ubah "${n.text}" menjadi bentuk dasar.`});
+      }
     }
     if ((t.lemma === 'more' || (t.tag === 'RB' && t.text.toLowerCase() === 'more')) && n.tag === 'JJR') {
       issues.push({level:'error', glossId:'transfer-more-er',
@@ -1191,7 +1217,9 @@ function validate(tokens, structureOrList) {
       if (vIdx > 0) {
         const v = tokens[vIdx];
         const adjLike = v.tag === 'VBD' && v.amb?.includes('JJ');
-        if (VERB_TAGS.has(v.tag) && v.tag !== 'VBG' && v.tag !== 'VBN' && !adjLike)
+        /* [W9] Jangan fire jika transfer-be-agree yang menangani. */
+        const isTransferAgree = v.lemma === 'agree';
+        if (VERB_TAGS.has(v.tag) && v.tag !== 'VBG' && v.tag !== 'VBN' && !adjLike && !isTransferAgree)
           issues.push({level:'error', glossId:'auxiliary-verb', msg:`Setelah be (am/is/are/was/were) kata kerja harus berbentuk V-ing (untuk aksi sedang berlangsung) atau V3 (untuk kalimat pasif). Ubah "${v.text}".`});
       }
     }
@@ -2667,7 +2695,21 @@ const TEST_CORPUS = [
   { group: 'L', s: 'He is taller than me.', noIssue: ['transfer-more-er'] },
   { group: 'L', s: 'I agree.', noIssue: ['transfer-be-agree'] },
   { group: 'L', s: 'We discuss the topic.', noIssue: ['transfer-discuss-about'] },
-  { group: 'L', s: 'She is married to him.', noIssue: ['transfer-married-with'] }
+  { group: 'L', s: 'She is married to him.', noIssue: ['transfer-married-with'] },
+
+  /* Kelompok M: W9 fix regresi & kontradiksi */
+  { group: 'M', s: 'The books which I bought yesterday were expensive.', noIssue: ['subject-verb-agreement'] },
+  { group: 'M', s: 'The people who live next door are nice.', noIssue: ['subject-verb-agreement'] },
+  { group: 'M', s: 'The number of students is increasing.', noIssue: ['subject-verb-agreement'] },
+  { group: 'M', s: 'The number of students are increasing.', issue: ['subject-verb-agreement'] },
+  { group: 'M', s: 'The group of students is waiting.', noIssue: ['subject-verb-agreement'] },
+  { group: 'M', s: 'I look forward to meeting you.', noIssue: ['transfer-to-ing'] },
+  { group: 'M', s: 'I am looking forward to meeting you.', noIssue: ['transfer-to-ing'] },
+  { group: 'M', s: 'They are discussing about the plan.', issue: ['transfer-discuss-about'] },
+  { group: 'M', s: 'I am agree.', issue: ['transfer-be-agree'], noIssue: ['auxiliary-verb'] },
+  { group: 'M', s: 'Because I was tired, I went home.', noIssue: ['subject-verb-agreement'] },
+  { group: 'M', s: 'I like to read books.', noIssue: ['transfer-to-ing'] },
+  { group: 'M', s: 'She likes to reading.', issue: ['transfer-to-ing'] }
 ];
 
 function runOneTest(tc) {
