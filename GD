@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Grammar Formula Highlighter — v2.1.0 (W9 patched)</title>
+<title>Grammar Formula Highlighter (W11 patched)</title>
 <style>
   *{box-sizing:border-box}
   :root{--bg:#fafafa;--fg:#222;--muted:#888;--line:#e2e2e2;--panel:#fff;--accent:#4a6ee0;--accent-bg:#eef3ff;--nav-h:68px;--ok:#2e8b57;--fail:#d9534f;--xfail:#e0a800}
@@ -124,6 +124,10 @@
   .lib-detail .ld-related{display:flex;flex-wrap:wrap;gap:6px}
   .lib-related-btn{padding:4px 12px;font-size:12.5px;border:1px solid var(--line);background:#fafafa;border-radius:20px;cursor:pointer;color:var(--accent);font-family:inherit}
   .lib-related-btn:hover{background:var(--accent-bg);border-color:#c8d4f8}
+  /* [W11] Simple explanation box */
+  .lib-detail .ld-simple{display:flex;gap:10px;align-items:flex-start;background:#fffbe6;border-left:3px solid #e0a800;padding:12px 14px;border-radius:8px;margin:12px 0 0;font-size:13.5px;line-height:1.65;color:#222}
+  .lib-detail .ld-simple .ld-simple-icon{font-size:18px;line-height:1;flex-shrink:0}
+  .lib-detail .ld-simple strong{color:#8a6d00;margin-right:4px}
 
   .textview-overlay{background:#fff;display:block;padding:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
   .textview-close{position:fixed;top:calc(16px + env(safe-area-inset-top,0px));left:16px;width:44px;height:44px;border-radius:50%;color:#333;z-index:2;box-shadow:0 2px 10px rgba(0,0,0,.08)}
@@ -244,8 +248,8 @@
     <p>Halaman pengaturan aplikasi. Pengaturan tambahan akan tersedia di bagian ini pada versi mendatang.</p>
   </div>
   <div class="settings-card">
-    <h3>Test Suite (Gelombang 9)</h3>
-    <p style="margin-bottom:12px">Jalankan korpus uji regresi. Target: <code>145 pass · 0 fail · 0 xfail</code>. xfail adalah test yang sengaja ditandai gagal sampai gelombang berikutnya.</p>
+    <h3>Test Suite (Gelombang 11)</h3>
+    <p style="margin-bottom:12px">Jalankan korpus uji regresi. Target: <code>168 pass · 0 fail · 0 xfail</code>. xfail adalah test yang sengaja ditandai gagal sampai gelombang berikutnya.</p>
     <button class="test-btn" id="run-tests" type="button">▶ Run Tests</button>
     <div id="test-panel" hidden style="margin-top:16px"></div>
   </div>
@@ -312,19 +316,17 @@
    KONTRAK VERIFIKASI — versi JS (grep target: "_CONTRACT")
    ============================================================ */
 const _CONTRACT = {
-  version: '2.1.0',
-  wave: 'W9',
+  version: '2.3.0',
+  wave: 'W11',
   scope: [
-    'LEX: agree/discuss/marry/married/more',
-    'detectTransferPatterns: to+V-ing, more+JJR, be+agree, discuss about, married with',
-    'validate: panggil detectTransferPatterns',
-    'GRAMMAR_GLOSSARY: kategori transfer + 5 entri baru',
-    'test corpus: Kelompok L (13 test)'
+    'explain-to-me: simple box di glossary detail',
+    'simple field untuk 15 entri inti',
+    'Kelompok O: 5 data integrity test'
   ],
-  frozen: ['detectTense','chunk','render*'],
-  target: '145 pass · 0 fail · 0 xfail',
+  frozen: ['detectTense','chunk'],
+  target: '168 pass · 0 fail · 0 xfail',
   nextWave: {
-    W9: 'since+for duration, one-of agreement, explain-to-me, missing-article'
+    W12: 'pola transfer L1 lanjutan (kandidat)'
   }
 };
 
@@ -361,6 +363,10 @@ const QUANTIFIER_HEADS = new Set([
 function findSubjectHead(tokens, start, end) {
   for (let i = start; i <= end; i++) {
     const t = tokens[i];
+    /* [W10] "one of the X" → head = one (singular). */
+    if (t.text.toLowerCase() === 'one' && tokens[i+1] && tokens[i+1].lemma === 'of') {
+      return i;
+    }
     if (/^(DT|PRP\$|CD|JJ|JJR|JJS|RB)$/.test(t.tag)) continue;
     if (t.tag === 'WP' || t.tag === 'WDT' || t.tag === 'WRB') return -1;
     if (t.tag === 'IN') {
@@ -397,6 +403,8 @@ function getSubjectNumber(tokens, span) {
       return 'other';
     }
     if (h.tag === 'NNP' || h.tag === 'NN' || h.tag === 'VBG') return '3sg';
+    /* [W10] "one" sebagai head → selalu 3sg. */
+    if (h.tag === 'CD' && w === 'one') return '3sg';
     if (h.tag === 'NNS') return 'other';
     return 'skip';
   }
@@ -489,6 +497,16 @@ const UNCOUNTABLE = new Set([
 reg('more', {t:'RB', amb:['JJR']});
 reg(['agree','discuss','marry'], {t:'VB', form:'V1'});
 reg('married', {t:'JJ'});
+
+/* [W10] Satuan waktu untuk deteksi "since + durasi". */
+const DURATION_UNITS = new Set(['minute','second','hour','day','week','month','year','decade','century']);
+/* [W10] Kata yang lazim tanpa article (institusi/akademik/waktu makan). */
+const INSTITUTIONAL_NN = new Set([
+  'school','work','home','church','bed','prison','jail','hospital','college','university',
+  'class','office','town','sea','breakfast','lunch','dinner',
+  'mathematics','physics','politics','economics','statistics','linguistics',
+  'athletics','gymnastics','measles','mumps','rabies','ethics','diabetes'
+]);
 
 /* ============================================================
    2. IRREGULAR VERBS
@@ -1120,6 +1138,15 @@ function detectTransferPatterns(tokens) {
       issues.push({level:'error', glossId:'transfer-married-with',
         msg:`"married" diikuti "to", bukan "with". Contoh: "married to him", bukan "married with him".`});
     }
+    /* [W10] since + durasi (seharusnya "for"). */
+    if (t.lemma === 'since' && n.tag === 'CD') {
+      const n2 = tokens[i+2];
+      const n2lem = n2 && n2.lemma ? n2.lemma.toLowerCase() : (n2 ? n2.text.toLowerCase().replace(/s$/,'') : '');
+      if (n2 && /^NN/.test(n2.tag) && DURATION_UNITS.has(n2lem)) {
+        issues.push({level:'error', glossId:'transfer-since-for',
+          msg:`"since" dipakai untuk titik waktu (mis. "since 2020", "since Monday"), bukan durasi. Untuk durasi gunakan "for" (mis. "for ${n.text} ${n2.text}").`});
+      }
+    }
   }
   return issues;
 }
@@ -1235,6 +1262,24 @@ function validate(tokens, structureOrList) {
         else vowel = /^[aeiou]/i.test(next.text);
         if (t.text.toLowerCase() === 'a' && vowel) issues.push({level:'warn', glossId:'determiner', msg:`Gunakan "an" sebelum "${next.text}" karena kata itu dimulai dengan bunyi vokal.`});
         if (t.text.toLowerCase() === 'an' && !vowel) issues.push({level:'warn', glossId:'determiner', msg:`Gunakan "a" sebelum "${next.text}" karena kata itu tidak dimulai dengan bunyi vokal.`});
+      }
+    }
+    /* [W10] Missing article: NN tunggal countable tanpa determiner. */
+    if (t.tag === 'NN' && !t.unknown && !t.uncertain
+        && !UNCOUNTABLE.has(t.text.toLowerCase())
+        && !INSTITUTIONAL_NN.has(t.text.toLowerCase())) {
+      const prev = i > 0 ? tokens[i-1] : null;
+      let fire = false;
+      if (!prev) { fire = true; }
+      else if (prev.tag === 'DT' || prev.tag === 'PRP$' || prev.tag === 'CD' || prev.tag === 'IN') { /* skip */ }
+      else if (prev.tag === 'JJ' || prev.tag === 'JJR' || prev.tag === 'JJS') {
+        const prev2 = i > 1 ? tokens[i-2] : null;
+        if (!(prev2 && (prev2.tag === 'DT' || prev2.tag === 'PRP$' || prev2.tag === 'CD'))) fire = true;
+      }
+      else if (/^(VB|VBD|VBG|VBN|VBP|VBZ|MD)$/.test(prev.tag)) { fire = true; }
+      if (fire) {
+        issues.push({level:'error', glossId:'missing-article',
+          msg:`Kata benda tunggal "${t.text}" biasanya butuh kata penunjuk seperti "a", "an", atau "the" di depannya.`});
       }
     }
   });
@@ -1632,7 +1677,7 @@ const PHRASE_TO_GLOSSARY = {
 const FORM_TO_GLOSSARY = {'V1':'v1','V2':'v2','V3':'v3','V-ing':'v-ing','V-s':'v-s'};
 
 /* ============================================================
-   18. GRAMMAR GLOSSARY — 65 entri (60 + 5 W8)
+   18. GRAMMAR GLOSSARY — 67 entri (+ simple field untuk 15 inti)
    ============================================================ */
 const GLOSSARY_CATEGORIES = [
   {id:'pos', name:'Jenis Kata'},
@@ -1646,6 +1691,7 @@ const GLOSSARY_CATEGORIES = [
 const GRAMMAR_GLOSSARY = {
   'noun': {id:'noun', name:'Noun (Kata Benda)', abbr:'NN / NNS / NNP', category:'pos',
     definition:'Kata yang menyebut orang, tempat, benda, atau hal yang bisa dibicarakan.',
+    simple:'Kata benda = nama orang, tempat, atau barang. Contoh: book, Jakarta, teacher.',
     fungsi:'Jadi kata inti dalam kelompok kata benda. Bisa berperan sebagai pelaku, yang dikenai tindakan, atau pelengkap.',
     identifikasi:'Biasanya bisa didahului "the", "a", atau "an". Bentuk tunggal (NN), jamak (NNS), atau nama diri (NNP).',
     rumus:null,
@@ -1668,6 +1714,7 @@ const GRAMMAR_GLOSSARY = {
     related:['noun','determiner','subject']},
   'verb': {id:'verb', name:'Verb (Kata Kerja)', abbr:'VB / VBD / VBG / VBN / VBP / VBZ', category:'pos',
     definition:'Kata yang menyatakan tindakan, kejadian, atau keadaan.',
+    simple:'Kata kerja = kata tindakan atau keadaan. Contoh: go, eat, is.',
     fungsi:'Jadi inti dari kelompok kata kerja. Bersama kata bantu membentuk predikat kalimat.',
     identifikasi:'Bentuk dasar VB; VBD untuk lampau; VBG untuk -ing; VBN past participle (V3); VBP untuk I/you/we/they; VBZ untuk he/she/it.',
     rumus:'Subjek + kata kerja (+ objek/pelengkap)',
@@ -1956,6 +2003,7 @@ const GRAMMAR_GLOSSARY = {
 
   'simple-present': {id:'simple-present', name:'Simple Present (Waktu Sekarang Sederhana)', abbr:null, category:'tense',
     definition:'Bentuk waktu untuk menyatakan kebiasaan, fakta umum, atau keadaan saat ini.',
+    simple:'Untuk kebiasaan atau fakta. Contoh: I eat rice every day. Untuk he/she/it, kata kerja + -s.',
     fungsi:'Menyatakan hal yang dilakukan berulang, kebenaran umum, atau jadwal.',
     identifikasi:'Kata kerja dasar (V1) untuk I/you/we/they. Kata kerja + -s (V-s) untuk he/she/it.',
     rumus:'Pelaku + V1 / V-s',
@@ -1967,6 +2015,7 @@ const GRAMMAR_GLOSSARY = {
     related:['v1','v-s','subject-verb-agreement','present-continuous']},
   'simple-past': {id:'simple-past', name:'Simple Past (Waktu Lampau Sederhana)', abbr:null, category:'tense',
     definition:'Bentuk waktu untuk menyatakan aksi atau keadaan yang sudah selesai di masa lampau.',
+    simple:'Untuk kejadian yang sudah selesai. Contoh: I ate rice yesterday. Kata kerja pakai V2.',
     fungsi:'Menceritakan kejadian lampau yang sudah tuntas.',
     identifikasi:'Kata kerja bentuk kedua (V2): untuk kata kerja beraturan tambah -ed, untuk tidak beraturan bentuknya khusus.',
     rumus:'Pelaku + V2',
@@ -1978,6 +2027,7 @@ const GRAMMAR_GLOSSARY = {
     related:['v2','irregular-verb','regular-verb','past-continuous','past-perfect']},
   'simple-future': {id:'simple-future', name:'Simple Future (Waktu Akan Datang Sederhana)', abbr:null, category:'tense',
     definition:'Bentuk waktu untuk menyatakan aksi atau keadaan yang akan terjadi.',
+    simple:'Untuk kejadian yang akan datang. Contoh: I will eat. Pola: will + V1.',
     fungsi:'Menyatakan prediksi, janji, keputusan spontan, atau rencana.',
     identifikasi:'will atau shall + kata kerja dasar (V1).',
     rumus:'Pelaku + will + V1',
@@ -1986,6 +2036,7 @@ const GRAMMAR_GLOSSARY = {
     related:['modal-verb','v1','future-continuous','future-perfect']},
   'present-continuous': {id:'present-continuous', name:'Present Continuous (Sedang Berlangsung Sekarang)', abbr:null, category:'tense',
     definition:'Bentuk waktu untuk menyatakan aksi yang sedang berlangsung saat ini.',
+    simple:'Untuk kejadian yang sedang berlangsung. Contoh: I am eating. Pola: am/is/are + V-ing.',
     fungsi:'Menyatakan aksi yang sedang terjadi, tren sementara, atau rencana dekat.',
     identifikasi:'am/is/are + kata kerja -ing.',
     rumus:'Pelaku + am/is/are + V-ing',
@@ -2010,6 +2061,7 @@ const GRAMMAR_GLOSSARY = {
     related:['simple-future','future-perfect','v-ing']},
   'present-perfect': {id:'present-perfect', name:'Present Perfect (Selesai tapi Masih Berhubungan)', abbr:null, category:'tense',
     definition:'Bentuk waktu untuk aksi yang terjadi di masa lampau namun masih berhubungan dengan sekarang.',
+    simple:'Untuk kejadian yang sudah selesai tapi masih relevan. Contoh: I have eaten. Pola: have/has + V3.',
     fungsi:'Menyatakan pengalaman, hasil, atau aksi yang baru saja selesai.',
     identifikasi:'have/has + kata kerja bentuk V3.',
     rumus:'Pelaku + have/has + V3',
@@ -2117,6 +2169,7 @@ const GRAMMAR_GLOSSARY = {
 
   'v1': {id:'v1', name:'V1 — Bentuk Dasar', abbr:'V1 / VB', category:'verbform',
     definition:'Bentuk kata kerja paling dasar, seperti yang ada di kamus.',
+    simple:'Bentuk asli kata kerja seperti di kamus (go, eat). Dipakai setelah "to" atau dengan I/you/we/they.',
     fungsi:'Dipakai untuk subjek I/you/we/they di Simple Present, setelah modal, dan setelah "to".',
     identifikasi:'Bentuk kamus: go, eat, play.',
     rumus:null,
@@ -2128,6 +2181,7 @@ const GRAMMAR_GLOSSARY = {
     related:['verb','v2','v3','v-ing','v-s','modal-verb']},
   'v2': {id:'v2', name:'V2 — Bentuk Lampau', abbr:'V2 / VBD', category:'verbform',
     definition:'Bentuk kata kerja untuk menyatakan lampau (Simple Past).',
+    simple:'Bentuk lampau kata kerja (went, ate). Untuk kejadian yang sudah selesai di masa lalu.',
     fungsi:'Dipakai hanya di Simple Past, bukan setelah kata bantu.',
     identifikasi:'Kata kerja beraturan: V1 + -ed. Kata kerja tidak beraturan: bentuk khusus (went, ate).',
     rumus:null,
@@ -2136,6 +2190,7 @@ const GRAMMAR_GLOSSARY = {
     related:['v1','v3','simple-past','irregular-verb','regular-verb']},
   'v3': {id:'v3', name:'V3 — Bentuk Ketiga (Past Participle)', abbr:'V3 / VBN', category:'verbform',
     definition:'Bentuk kata kerja yang dipakai di perfect tense dan kalimat pasif.',
+    simple:'Bentuk kata kerja ketiga (gone, eaten). Dipakai setelah have/has/had atau be.',
     fungsi:'Selalu dipakai setelah have/has/had (perfect) atau be (pasif).',
     identifikasi:'Kata kerja beraturan: V1 + -ed (sama seperti V2). Tidak beraturan: bentuk khusus (gone, eaten).',
     rumus:null,
@@ -2225,6 +2280,7 @@ const GRAMMAR_GLOSSARY = {
   /* [W8] Pola transfer L1 */
   'transfer-to-ing': {id:'transfer-to-ing', name:'to + V-ing (pola keliru)', abbr:'to + V-ing', category:'transfer',
     definition:'Pola keliru: "to" diikuti kata kerja bentuk -ing. Dalam bahasa Indonesia, "untuk" bisa diikuti kata kerja apa saja, sehingga pelajar sering menulis "to reading" alih-alih "to read" atau "reading".',
+    simple:'Setelah "to" harus V1, bukan -ing. SALAH: to reading. BENAR: to read.',
     fungsi:'Pengingat bahwa setelah "to" sebagai penanda kata kerja dasar, kata kerja harus dalam bentuk V1 (bentuk kamus).',
     identifikasi:'Lihat "to" yang langsung diikuti kata kerja berakhiran -ing.',
     rumus:'SALAH: to + V-ing → BENAR: to + V1 (atau V-ing tanpa "to")',
@@ -2236,6 +2292,7 @@ const GRAMMAR_GLOSSARY = {
     related:['infinitive','infinitive-marker','v-ing','v1']},
   'transfer-more-er': {id:'transfer-more-er', name:'more + -er (pola keliru)', abbr:'more + JJR', category:'transfer',
     definition:'Pola keliru: "more" dan akhiran -er dipakai bersamaan untuk membentuk perbandingan. Dalam bahasa Indonesia, "lebih" bisa digabung dengan kata sifat apapun, sehingga pelajar sering menulis "more taller" alih-alih "taller".',
+    simple:'Jangan pakai "more" dan -er bersamaan. SALAH: more taller. BENAR: taller atau more tall.',
     fungsi:'Pengingat bahwa perbandingan bahasa Inggris memakai salah satu saja: "more + kata sifat" atau "kata sifat + -er".',
     identifikasi:'Lihat "more" yang langsung diikuti kata sifat berakhiran -er.',
     rumus:'SALAH: more + kata sifat + -er → BENAR: more + kata sifat ATAU kata sifat + -er',
@@ -2248,6 +2305,7 @@ const GRAMMAR_GLOSSARY = {
     related:['adjective','transfer-be-agree']},
   'transfer-be-agree': {id:'transfer-be-agree', name:'be + agree (pola keliru)', abbr:'be + agree', category:'transfer',
     definition:'Pola keliru: menambahkan "be" (am/is/are) di depan kata kerja "agree". Dalam bahasa Indonesia, "setuju" adalah kata sifat sehingga wajar didahului "adalah"; dalam bahasa Inggris, "agree" adalah kata kerja sehingga langsung menjadi predikat.',
+    simple:'"Agree" sudah kata kerja, tidak butuh "be". SALAH: I am agree. BENAR: I agree.',
     fungsi:'Pengingat bahwa "agree" sudah kata kerja, tidak perlu kata bantu "be" di depannya.',
     identifikasi:'Lihat "am/is/are/was/were" yang langsung diikuti "agree".',
     rumus:'SALAH: be + agree → BENAR: agree / agrees',
@@ -2259,6 +2317,7 @@ const GRAMMAR_GLOSSARY = {
     related:['verb','copular-verb','subject-verb-agreement']},
   'transfer-discuss-about': {id:'transfer-discuss-about', name:'discuss about (pola keliru)', abbr:'discuss about', category:'transfer',
     definition:'Pola keliru: "discuss" diikuti "about". Dalam bahasa Indonesia, "membahas tentang" wajar dipakai; dalam bahasa Inggris, "discuss" adalah kata kerja transitif sehingga langsung diikuti objeknya.',
+    simple:'"Discuss" tidak butuh "about". SALAH: discuss about the topic. BENAR: discuss the topic.',
     fungsi:'Pengingat bahwa "discuss" langsung diikuti objeknya, tanpa preposisi.',
     identifikasi:'Lihat "discuss" yang langsung diikuti "about".',
     rumus:'SALAH: discuss about + objek → BENAR: discuss + objek',
@@ -2270,6 +2329,7 @@ const GRAMMAR_GLOSSARY = {
     related:['preposition','verb','transfer-married-with']},
   'transfer-married-with': {id:'transfer-married-with', name:'married with (pola keliru)', abbr:'married with', category:'transfer',
     definition:'Pola keliru: "married" diikuti "with". Dalam bahasa Indonesia, "menikah dengan" selalu pakai "dengan"; dalam bahasa Inggris, "married" diikuti "to".',
+    simple:'"Married" diikuti "to", bukan "with". SALAH: married with him. BENAR: married to him.',
     fungsi:'Pengingat bahwa pasangan tetap "married to", bukan "married with".',
     identifikasi:'Lihat "married" yang langsung diikuti "with".',
     rumus:'SALAH: married with + orang → BENAR: married to + orang',
@@ -2278,7 +2338,33 @@ const GRAMMAR_GLOSSARY = {
       {kalimat:'BENAR: He is <u>married to</u> my sister.', catatan:'"married to" + orang.'}
     ],
     perbedaan:'"Married to" untuk pasangan pernikahan. "Married with" tidak ada dalam bahasa Inggris standar untuk konteks ini.',
-    related:['preposition','transfer-discuss-about']}
+    related:['preposition','transfer-discuss-about']},
+
+  /* [W10] New entries */
+  'transfer-since-for': {id:'transfer-since-for', name:'since + durasi (pola keliru)', abbr:'since + durasi', category:'transfer',
+    definition:'Pola keliru: "since" diikuti ekspresi durasi (mis. "since 2 hours"). Dalam bahasa Indonesia, "sejak" dan "selama" sering tertukar; dalam bahasa Inggris, "since" untuk titik waktu (since 2020, since Monday) dan "for" untuk durasi (for 2 hours).',
+    fungsi:'Mengingatkan perbedaan "since" (titik waktu) dan "for" (durasi).',
+    identifikasi:'Lihat "since" yang diikuti angka + satuan waktu (hour, day, week, month, year).',
+    rumus:'SALAH: since + durasi → BENAR: for + durasi / since + titik waktu',
+    contoh:[
+      {kalimat:'SALAH: I have lived here <u>since 2 years</u>.', catatan:'Gunakan "for 2 years".'},
+      {kalimat:'BENAR: I have lived here <u>for 2 years</u>.', catatan:'Durasi pakai "for".'},
+      {kalimat:'BENAR: I have lived here <u>since 2020</u>.', catatan:'Titik waktu pakai "since".'}
+    ],
+    perbedaan:'"Since" + titik waktu (Monday, 2020, I was a child). "For" + durasi (2 hours, 3 days, a long time).',
+    related:['present-perfect','preposition','present-perfect-continuous']},
+  'missing-article': {id:'missing-article', name:'Missing Article (Kata Penunjuk Hilang)', abbr:'a/an/the', category:'transfer',
+    definition:'Kesalahan karena kata benda tunggal yang bisa dihitung (countable) dipakai tanpa kata penunjuk "a", "an", atau "the". Bahasa Indonesia tidak punya article, jadi pelajar sering lupa menambahkannya.',
+    fungsi:'Mengingatkan bahwa kata benda countable tunggal dalam bahasa Inggris hampir selalu butuh determiner.',
+    identifikasi:'Lihat kata benda tunggal (NN) yang tidak didahului "a", "an", "the", "my", "this", atau kata bilangan.',
+    rumus:'(a/an/the/my/this/…) + kata benda tunggal',
+    contoh:[
+      {kalimat:'SALAH: I read <u>book</u>.', catatan:'Gunakan "I read a book" atau "I read the book".'},
+      {kalimat:'BENAR: She is <u>a</u> teacher.', catatan:'"a" sebelum kata benda tunggal yang belum spesifik.'},
+      {kalimat:'BENAR: <u>The</u> book is on the table.', catatan:'"the" untuk kata benda yang sudah spesifik.'}
+    ],
+    perbedaan:'Countable tunggal butuh determiner. Uncountable (water, advice) dan plural (books) bisa tanpa determiner.',
+    related:['determiner','noun','noun-phrase']}
 };
 
 /* ============================================================
@@ -2301,7 +2387,7 @@ function filterGlossary() {
   return getGlossaryEntries().filter(e => {
     if (cat !== 'all' && e.category !== cat) return false;
     if (!q) return true;
-    const hay = [e.name, e.abbr||'', e.definition, e.fungsi||'', e.identifikasi||'', e.rumus||'', ...(e.contoh||[]).map(c => c.kalimat + ' ' + c.catatan)].join(' ').toLowerCase();
+    const hay = [e.name, e.abbr||'', e.definition, e.simple||'', e.fungsi||'', e.identifikasi||'', e.rumus||'', ...(e.contoh||[]).map(c => c.kalimat + ' ' + c.catatan)].join(' ').toLowerCase();
     return hay.includes(q);
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -2331,7 +2417,7 @@ function renderGlossaryList() {
         ${e.abbr ? `<span class="li-abbr">${esc(e.abbr)}</span>` : ''}
         <span class="li-cat">${esc(getCategoryName(e.category))}</span>
       </div>
-      <div class="li-def">${esc(e.definition)}</div>
+      <div class="li-def">${esc(e.simple || e.definition)}</div>
     </button>`).join('');
   if (hidden > 0) {
     html += `<div style="text-align:center"><button class="view-more-btn" data-lib-expand="list">${expanded ? 'Show less' : `Show more (${hidden} lagi)`}</button></div>`;
@@ -2349,6 +2435,10 @@ function renderGlossaryDetail(termId) {
   const relHidden = related.length - Math.min(relLimit, related.length);
 
   let html = `<h3>${esc(e.name)}${e.abbr ? ` <span class="ld-abbr">${esc(e.abbr)}</span>` : ''} <span class="ld-cat">${esc(getCategoryName(e.category))}</span></h3>`;
+  /* [W11] Explain-to-me: kotak penjelasan sederhana. */
+  if (e.simple) {
+    html += `<div class="ld-simple"><span class="ld-simple-icon" aria-hidden="true">💡</span><div><strong>Intinya:</strong> ${esc(e.simple)}</div></div>`;
+  }
   html += `<div class="ld-section"><h4>Apa itu?</h4><p>${esc(e.definition)}</p></div>`;
   if (e.fungsi) html += `<div class="ld-section"><h4>Untuk apa?</h4><p>${esc(e.fungsi)}</p></div>`;
   if (e.identifikasi) html += `<div class="ld-section"><h4>Cara mengenalinya</h4><p>${esc(e.identifikasi)}</p></div>`;
@@ -2709,7 +2799,61 @@ const TEST_CORPUS = [
   { group: 'M', s: 'I am agree.', issue: ['transfer-be-agree'], noIssue: ['auxiliary-verb'] },
   { group: 'M', s: 'Because I was tired, I went home.', noIssue: ['subject-verb-agreement'] },
   { group: 'M', s: 'I like to read books.', noIssue: ['transfer-to-ing'] },
-  { group: 'M', s: 'She likes to reading.', issue: ['transfer-to-ing'] }
+  { group: 'M', s: 'She likes to reading.', issue: ['transfer-to-ing'] },
+
+  /* Kelompok N: W10 — since+for, one-of, missing-article */
+  { group: 'N', s: 'One of the students is here.', noIssue: ['subject-verb-agreement'] },
+  { group: 'N', s: 'One of the students are here.', issue: ['subject-verb-agreement'] },
+  { group: 'N', s: 'One of my friends is a doctor.', noIssue: ['subject-verb-agreement'] },
+  { group: 'N', s: 'One of my friends are a doctor.', issue: ['subject-verb-agreement'] },
+  { group: 'N', s: 'I have lived here since 2 years.', issue: ['transfer-since-for'] },
+  { group: 'N', s: 'I have lived here for 2 years.', noIssue: ['transfer-since-for'] },
+  { group: 'N', s: 'She has been waiting since 3 hours.', issue: ['transfer-since-for'] },
+  { group: 'N', s: 'She has been waiting for 3 hours.', noIssue: ['transfer-since-for'] },
+  { group: 'N', s: 'I have known him since 2020.', noIssue: ['transfer-since-for'] },
+  { group: 'N', s: 'I have known him since Monday.', noIssue: ['transfer-since-for'] },
+  { group: 'N', s: 'Book is on table.', issue: ['missing-article'] },
+  { group: 'N', s: 'I read book.', issue: ['missing-article'] },
+  { group: 'N', s: 'I read a book.', noIssue: ['missing-article'] },
+  { group: 'N', s: 'She is a teacher.', noIssue: ['missing-article'] },
+  { group: 'N', s: 'I drink water.', noIssue: ['missing-article'] },
+  { group: 'N', s: 'John is here.', noIssue: ['missing-article'] },
+  { group: 'N', s: 'Books are here.', noIssue: ['missing-article'] },
+  { group: 'N', s: 'School is fun.', noIssue: ['missing-article'] },
+
+  /* Kelompok O: W11 — data integrity checks */
+  { group: 'O', s: '[data] 15 core glossary entries have simple field', dataCheck: (fails) => {
+    const ids = ['noun','verb','v1','v2','v3','simple-present','simple-past','simple-future',
+                 'present-continuous','present-perfect',
+                 'transfer-to-ing','transfer-more-er','transfer-be-agree',
+                 'transfer-discuss-about','transfer-married-with'];
+    for (const id of ids) {
+      if (!GRAMMAR_GLOSSARY[id]) fails.push(`glossary "${id}" tidak ada`);
+      else if (!GRAMMAR_GLOSSARY[id].simple) fails.push(`glossary "${id}" tidak punya field simple`);
+    }
+  }},
+  { group: 'O', s: '[data] simple field is short (≤250 chars) and non-empty', dataCheck: (fails) => {
+    for (const [id, e] of Object.entries(GRAMMAR_GLOSSARY)) {
+      if (!e.simple) continue;
+      if (e.simple.length === 0) fails.push(`glossary "${id}".simple kosong`);
+      if (e.simple.length > 250) fails.push(`glossary "${id}".simple terlalu panjang (${e.simple.length} char)`);
+    }
+  }},
+  { group: 'O', s: '[data] TAG_TO_GLOSSARY values all exist', dataCheck: (fails) => {
+    for (const [tag, gid] of Object.entries(TAG_TO_GLOSSARY)) {
+      if (!GRAMMAR_GLOSSARY[gid]) fails.push(`TAG_TO_GLOSSARY["${tag}"] → "${gid}" tidak ada`);
+    }
+  }},
+  { group: 'O', s: '[data] PHRASE_TO_GLOSSARY values all exist', dataCheck: (fails) => {
+    for (const [type, gid] of Object.entries(PHRASE_TO_GLOSSARY)) {
+      if (!GRAMMAR_GLOSSARY[gid]) fails.push(`PHRASE_TO_GLOSSARY["${type}"] → "${gid}" tidak ada`);
+    }
+  }},
+  { group: 'O', s: '[data] FORM_TO_GLOSSARY values all exist', dataCheck: (fails) => {
+    for (const [form, gid] of Object.entries(FORM_TO_GLOSSARY)) {
+      if (!GRAMMAR_GLOSSARY[gid]) fails.push(`FORM_TO_GLOSSARY["${form}"] → "${gid}" tidak ada`);
+    }
+  }}
 ];
 
 function runOneTest(tc) {
@@ -2730,6 +2874,9 @@ function runOneTest(tc) {
   const infoMsgs = issues.filter(i => i.level === 'info').map(i => i.msg);
 
   const fails = [];
+
+  /* [W11] Data integrity checks */
+  if (tc.dataCheck) tc.dataCheck(fails);
 
   if (tc.chunkNoOverlap) {
     const sorted = spans.slice().sort((a, b) => a.start - b.start);
