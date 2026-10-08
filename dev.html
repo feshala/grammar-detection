@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grammar Formula Highlighter — DEV (modular source)</title>
+<!--
+  DEV LOADER — not the deliverable.
+  The deliverable is GD (built by ./build.sh).
+  This file references src/ directly so edits to modules are reflected on refresh.
+  Requires a local HTTP server (Chrome blocks file:// script loading).
+  Run ./serve.sh then open http://localhost:8000/dev.html
+-->
+<link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+
+<div id="page-home">
+  <h1>Grammar Formula Highlighter</h1>
+  <p class="sub">Analisis grammar Inggris interaktif — klik kata atau frasa untuk melihat penjelasannya.</p>
+
+  <div class="search-box">
+    <textarea id="input" rows="1" spellcheck="false" autocomplete="off">She went to the market.</textarea>
+    <div class="actions">
+      <button id="fullview" class="arrow-btn" type="button" title="Lihat teks penuh" aria-label="Lihat teks penuh">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+        </svg>
+      </button>
+      <div class="actions-right">
+        <button id="reset" class="icon-btn reset" title="Hapus" aria-label="Reset">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+        <button id="go" class="icon-btn go" title="Analisis" aria-label="Analisa">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading" class="loading" hidden aria-live="polite">
+    <div class="loader" aria-hidden="true"></div>
+    <div class="loading-text">Menganalisis kalimat…</div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button data-mode="pos" class="active">Jenis Kata</button>
+    <button data-mode="phrase">Kelompok Kata</button>
+    <button data-mode="grammar">Rumus Grammar</button>
+  </div>
+
+  <div id="output"></div>
+  <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+  <div id="legend"></div>
+
+  <div class="grid">
+    <div class="card full" id="summary"><h3>Ringkasan Struktur</h3><div class="muted">—</div></div>
+    <div class="card" id="detail"><h3>Detail Kata</h3><div class="muted">Klik sebuah kata atau frasa di kalimat di atas.</div></div>
+    <div class="card" id="validation"><h3>Pemeriksaan Grammar</h3><div class="muted">—</div></div>
+    <div class="card full" id="patterns"><h3>Pola Grammar yang Terdeteksi</h3><div class="muted">—</div></div>
+  </div>
+</div>
+
+<div id="page-settings" class="settings-page page-hidden">
+  <h2>Settings</h2>
+  <div class="settings-card">
+    <h3>Tentang halaman ini</h3>
+    <p>Halaman pengaturan aplikasi. Pengaturan tambahan akan tersedia di bagian ini pada versi mendatang.</p>
+  </div>
+  <div class="settings-card">
+    <h3>Test Suite (Gelombang 13)</h3>
+    <p style="margin-bottom:12px">Jalankan korpus uji regresi. Target: <code id="target-count">auto</code>. xfail adalah test yang sengaja ditandai gagal sampai gelombang berikutnya.</p>
+    <button class="test-btn" id="run-tests" type="button">▶ Run Tests</button>
+    <div id="test-panel" hidden style="margin-top:16px"></div>
+  </div>
+</div>
+
+<div class="overlay textview-overlay" id="textview-overlay" data-open="false" hidden>
+  <button class="textview-close" id="textview-close" type="button" aria-label="Kembali" title="Kembali (Esc)">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  </button>
+  <div class="textview-content" id="textview-content"></div>
+</div>
+
+<div class="overlay lib-overlay" id="lib-overlay" data-open="false" hidden>
+  <div class="lib-modal" role="dialog" aria-modal="true" aria-labelledby="lib-title">
+    <header class="lib-header">
+      <h2 id="lib-title">Grammar Library <span class="lib-sub">Kamus istilah grammar dengan penjelasan sederhana</span></h2>
+      <button class="lib-close" id="lib-close" aria-label="Tutup library" title="Tutup (Esc)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </header>
+    <div class="lib-toolbar">
+      <div class="lib-search-wrap">
+        <input id="lib-search" class="lib-search" type="search" placeholder="Cari istilah atau singkatan... (mis. NP, VBN, kata bantu, lampau)" aria-label="Cari istilah grammar">
+      </div>
+      <div class="lib-cats" id="lib-cats" role="tablist" aria-label="Kategori istilah"></div>
+    </div>
+    <div class="lib-content">
+      <div class="lib-list-view" id="lib-list-view"><div class="lib-list" id="lib-list"></div></div>
+      <div class="lib-detail-view" id="lib-detail-view" hidden>
+        <button class="lib-back" id="lib-back">← Kembali ke daftar</button>
+        <div class="lib-detail" id="lib-detail"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="bottom-nav" role="navigation" aria-label="Navigasi utama">
+  <button class="nav-btn" data-page="library" aria-label="Buka Grammar Library" title="Library">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M4 4h11a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2V4z"/><path d="M17 6h3v14H6"/>
+    </svg>
+    <span>Library</span>
+  </button>
+  <button class="nav-btn active" data-page="home" aria-label="Halaman utama" title="Home">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>
+    </svg>
+    <span>Home</span>
+  </button>
+  <button class="nav-btn" data-page="settings" aria-label="Halaman pengaturan" title="Settings">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+    </svg>
+    <span>Settings</span>
+  </button>
+</nav>
+
+<!-- ============================================================
+     MODULES
+     Loaded in the same order as build.sh concatenates them.
+     No defer, no async — synchronous execution preserves order.
+     ============================================================ -->
+<script src="src/js/00-contract.js"></script>
+<script src="src/js/01-util.js"></script>
+<script src="src/js/02-lexicon.js"></script>
+<script src="src/js/03-irregular.js"></script>
+<script src="src/js/04-contractions.js"></script>
+<script src="src/js/05-tagger.js"></script>
+<script src="src/js/06-chunker.js"></script>
+<script src="src/js/07-structure.js"></script>
+<script src="src/js/08-tense.js"></script>
+<script src="src/js/09-validator.js"></script>
+<script src="src/js/10-labels.js"></script>
+<script src="src/js/11-colors.js"></script>
+<script src="src/js/12-state.js"></script>
+<script src="src/js/13-render.js"></script>
+<script src="src/js/14-autogrow.js"></script>
+<script src="src/js/15-overlay.js"></script>
+<script src="src/js/16-textview.js"></script>
+<script src="src/js/17-analyze.js"></script>
+<script src="src/js/18-mappings.js"></script>
+<script src="src/js/19-glossary.js"></script>
+<script src="src/js/20-library.js"></script>
+<script src="src/js/21-navigation.js"></script>
+<script src="src/js/22-handlers.js"></script>
+<script src="src/js/23-binding.js"></script>
+<script src="src/js/24-corpus.js"></script>
+<script src="src/js/25-init.js"></script>
+
+</body>
+</html>
