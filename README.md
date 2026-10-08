@@ -1,4 +1,4 @@
-# Grammar Formula Highlighter
+# Grammar Identification
 
 Offline, single-file, rule-based English grammar analysis tool for Indonesian learners of English.
 
@@ -9,16 +9,16 @@ Offline, single-file, rule-based English grammar analysis tool for Indonesian le
 Run:
 
 ```bash
-./build.sh
+./(no longer used)
 ```
 
-Output: `GD` (single HTML file, self-contained).
+Output: `GI(latest).html` (single HTML file, self-contained).
 
-Source lives in `src/`. Do not edit `GD` directly.
+Source lives in `src/`. Do not edit `GI(latest).html` directly.
 
 ## Test
 
-Open `GD` in a browser, navigate to **Settings**, click **Run Tests**.
+Open `GI(latest).html` in a browser, navigate to **Settings**, click **Run Tests**.
 
 Target: computed from `TEST_CORPUS.length`, must show `N pass · 0 fail · 0 xfail`.
 
@@ -86,8 +86,8 @@ These rules must hold after every edit:
 ## Changelog
 
 ### W13 — v2.6.0 (modularization)
-- Split single-file `GD` into `src/` with per-section files.
-- Added `build.sh` (Python-based, no external deps).
+- Split single-file `GI(latest).html` into `src/` with per-section files.
+- Added `(no longer used)` (Python-based, no external deps).
 - Moved contract + changelog to README.md.
 - License changed from AGPL v3 to Apache 2.0.
 - No behavioral change: `detectTense`, `chunk`, `render*` frozen.
