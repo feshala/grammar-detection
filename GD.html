@@ -4,13 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Grammar Formula Highlighter — DEV (modular source)</title>
-<!--
-  DEV LOADER — not the deliverable.
-  The deliverable is GD (built by ./build.sh).
-  This file references src/ directly so edits to modules are reflected on refresh.
-  Requires a local HTTP server (Chrome blocks file:// script loading).
-  Run ./serve.sh then open http://localhost:8000/dev.html
--->
 <link rel="stylesheet" href="src/styles.css">
 </head>
 <body>
@@ -135,11 +128,7 @@
   </button>
 </nav>
 
-<!-- ============================================================
-     MODULES
-     Loaded in the same order as build.sh concatenates them.
-     No defer, no async — synchronous execution preserves order.
-     ============================================================ -->
+<!------------------MODULES------------------>
 <script src="src/js/00-contract.js"></script>
 <script src="src/js/01-util.js"></script>
 <script src="src/js/02-lexicon.js"></script>
