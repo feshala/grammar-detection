@@ -4,16 +4,6 @@
    ============================================================ */
 const VERB_TAGS = new Set(['VB','VBD','VBG','VBN','VBP','VBZ']);
 
-function computeNextNonNot(tokens) {
-  const n = tokens.length;
-  const arr = new Array(n).fill(n);
-  for (let i = n - 2; i >= 0; i--) {
-    const nx = tokens[i+1];
-    arr[i] = (nx && nx.tag === 'RB' && nx.lemma === 'not') ? arr[i+1] : i+1;
-  }
-  return arr;
-}
-
 function findVerbAfterAux(tokens, startIdx, maxHops) {
   if (maxHops == null) maxHops = 4;
   for (let k = 1; k <= maxHops && startIdx + k < tokens.length; k++) {
