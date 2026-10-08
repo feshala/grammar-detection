@@ -138,9 +138,3 @@ These rules must hold after every edit:
 - `detectTransferPatterns`: to+V-ing, more+JJR, be+agree, discuss about, married with.
 - GRAMMAR_GLOSSARY: transfer category + 5 entries.
 - Group L tests (14).
-
-## License
-
-Apache 2.0. See `LICENSE`.
-
-Copyright 2026 feshala.
