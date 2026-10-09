@@ -17,7 +17,7 @@ const TEST_CORPUS = [
   { group: 'A', s: 'It uses energy.', tense: ['Simple Present'] },
   { group: 'A', s: 'My sister is a nurse.', noIssue: ['subject-verb-agreement'] },
   { group: 'A', s: 'My mother cooks well.', noIssue: ['subject-verb-agreement'] },
-  { group: 'A', s: 'My father works in a bank.', noIssue: ['subject-verb-agreement'] },
+  { group: 'A', s: 'My father works in a bank.', noIssue: ['subject-verb-agreement', 'noun'] },
   { group: 'A', s: 'I don\u2019t like tea.', noIssue: ['subject-verb-agreement'] },
   { group: 'A', s: 'She hasn\u2019t finished her work.', tense: ['Present Perfect'] },
   { group: 'A', s: "He hasn't finished yet.", tense: ['Present Perfect'] },
@@ -98,7 +98,7 @@ const TEST_CORPUS = [
   { group: 'H', s: 'I know when he come.', issue: ['subject-verb-agreement'] },
   { group: 'H', s: 'I know if he comes.', noIssue: ['subject-verb-agreement'] },
   { group: 'H', s: 'I know if he come.', issue: ['subject-verb-agreement'] },
-  { group: 'H', s: 'She sings while she works.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'She sings while she works.', noIssue: ['subject-verb-agreement', 'noun'] },
   { group: 'H', s: 'She sings while she work.', issue: ['subject-verb-agreement'] },
   { group: 'H', s: 'I will call you when I arrive.', noIssue: ['subject-verb-agreement'] },
   { group: 'H', s: 'Every day I go to school.', noIssue: ['subject-verb-agreement'] },
@@ -254,7 +254,32 @@ const TEST_CORPUS = [
   { group: 'Q', s: 'She is very beautiful.', noIssue: ['subject-verb-agreement'] },
   { group: 'Q', s: 'My father is an engineer.', noIssue: ['subject-verb-agreement'] },
   { group: 'Q', s: 'He is tall.', noIssue: ['subject-verb-agreement'] },
-  { group: 'Q', s: 'asdf qwer zxcv', verdict: 'abstain' }
+  { group: 'Q', s: 'asdf qwer zxcv', verdict: 'abstain' },
+
+  /* Kelompok R: post-audit konsistensi (leksikon + regresi verba/nomina) */
+  { group: 'R', s: '[data] LEX: kata yang ter-reg >1 kali hanya yang ada di allowlist', dataCheck: (fails) => {
+    // reg() menimpa LEX[w]; entri terakhir menang. Allowlist = pendaftaran ganda yang sudah ditinjau.
+    const known = new Set([
+      // penyempurnaan disengaja (entri akhir menambah amb)
+      'boring', 'tired', 'study',
+      // dinetralkan handler khusus di tagOne (05-tagger.js) sebelum lookup LEX
+      'like', 'early',
+      // MASALAH TERBUKA: entri akhir menimpa tag lain; perlu aturan konteks di tagger
+      'may', 'clean', 'kind', 'only', 'past', 'second', 'yet'
+    ]);
+    for (const [w, n] of Object.entries(REG_COUNT)) {
+      if (n > 1 && !known.has(w)) fails.push(`LEX "${w}" ter-reg ${n}x (entri akhir menimpa yang awal)`);
+    }
+    for (const w of known) {
+      if (!(REG_COUNT[w] > 1)) fails.push(`allowlist usang: "${w}" tidak lagi ter-reg ganda; hapus dari allowlist`);
+    }
+  }},
+  { group: 'R', s: 'He works in a school.', noIssue: ['noun'] },
+  { group: 'R', s: 'She waters the plants every day.', noIssue: ['noun'] },
+  { group: 'R', s: 'These advices are useful.', issue: ['noun'] },
+  { group: 'R', s: 'I need some informations.', issue: ['noun'] },
+  { group: 'R', s: 'He can answer the question.', tense: ['Modal Construction'], noIssue: ['missing-article'] },
+  { group: 'R', s: 'The answer is correct.', tense: ['Simple Present (copula)'] }
 ];
 
 function runOneTest(tc) {
