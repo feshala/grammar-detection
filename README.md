@@ -1,11 +1,12 @@
 # Grammar Identification
 
-Offline, single-file, rule-based English grammar analysis tool for Indonesian learners of English.
+Offline, rule-based English grammar analysis tool for Indonesian learners of English.
 
 **Version 2.6.0 (Wave 13 — modularized)**
 
-Output: `GI.latest.html` (single HTML file, self-contained).
-Source lives in `src/`. Do not edit `GI.latest.html` directly.
+Entry point: `GI.latest.html` (markup + script load order). Logic lives in `src/js/` (26 modules, `00`–`25`, loaded in numeric order via plain `<script src>`); styles live in `src/styles.css`. There is no build step: edit the files in `src/` directly.
+
+Optional: `./serve.sh` starts a local HTTP server (`python3 -m http.server`) and prints the URL.
 
 Target: computed from `TEST_CORPUS.length`, must show `N pass · 0 fail · 0 xfail`.
 
@@ -28,7 +29,7 @@ LEX + IRREG + C
 
 These rules must hold after every edit:
 
-1. Output is **one HTML file** with CSS and JS inline.
+1. Entry point is **`GI.latest.html`**; CSS and JS are local files under `src/`, loaded in numeric order (no build step).
 2. **Zero runtime dependency.** No CDN, no external fetch.
 3. **Frozen functions:** `detectTense`, `chunk`. They must not be modified without an explicit wave goal (efficiency, optimization, or feature maturation).
 4. Every entry in `GRAMMAR_GLOSSARY` has: `id`, `name`, `category`, `definition`.
@@ -45,7 +46,7 @@ These rules must hold after every edit:
 |---|---|---|
 | 00-contract | — | placeholder, kontrak hidup di README |
 | 01-util | 0 | `VERB_TAGS`, `findVerbAfterAux`, `findSubjectHead`, `getSubjectNumber` |
-| 02-lexicon | 1 | `LEX`, `UNCOUNTABLE`, `DURATION_UNITS`, `INSTITUTIONAL_NN`, `ARTICLE_REQUIRED_NN`, `NUMBER_INVARIANT` |
+| 02-lexicon | 1 | `LEX`, `UNCOUNTABLE`, `DURATION_UNITS`, `ARTICLE_REQUIRED_NN`, `NUMBER_INVARIANT` |
 | 03-irregular | 2 | `IRREG`, `V2_EQ_V3` |
 | 04-contractions | 3 | `C`, `ING_NOUNS` |
 | 05-tagger | 4 | `tokenize`, `tagOne`, `tagAll`, `stem*`, `markAux`, `fixAmbiguousIs` |
@@ -56,7 +57,7 @@ These rules must hold after every edit:
 | 10-labels | 9 | `TAG_LABEL`, `wordFunction`, `explainWord` |
 | 11-colors | 10 | `POS_COLORS`, `PHRASE_COLORS`, `TENSE_COLORS` |
 | 12-state | 11 | `STATE`, `EXPAND_STATE`, `esc`, `$` |
-| 13-render | 12 | all `render*` functions |
+| 13-render | 12 | main-view `render*` functions (`renderSentence`, `renderLegend`, `renderExpandable`, `renderSummary`, `renderDetail`, `renderValidation`, `renderPatterns`); glossary renderers live in 20-library and the test-result renderer in 24-corpus |
 | 14-autogrow | 13 | `autoGrowInput` |
 | 15-overlay | 14 | `openOverlay`, `closeOverlay` |
 | 16-textview | 15 | `openTextView`, `closeTextView`, `initTextViewEvents` |
@@ -72,9 +73,16 @@ These rules must hold after every edit:
 
 ## Changelog
 
+### W13 — post-audit consistency fixes (no version bump)
+- LEX: `answer` is registered once, as VB with `amb:['NN']` (it was shadowed to plain NN, so "can answer" lost its verb and raised a false `missing-article`).
+- `UNCOUNTABLE`: removed `work` and `water` (the verb forms `works`/`waters` raised a false "tidak lazim dijamak" error).
+- Removed the unused `INSTITUTIONAL_NN` set, the dead be/do/have `reg()` lines (fully overwritten by the AUX loops), and redundant list entries (`people`, `ugly`, `forest`). Effective `LEX` is unchanged except for `answer`.
+- `reg()` now counts registrations in `REG_COUNT` (no behavioural change). A Group R data test fails on any new double registration outside an allowlist. Known open shadowing (`may`, `clean`, `kind`, `only`, `past`, `second`, `yet`) is listed there and needs tagger context rules.
+- Group A/H `works` tests now also assert no `noun` issue. Group R added (7 tests); corpus 191 → 198.
+- No change to `chunk`, `detectTense`, or `render*`.
+
 ### W13 — v2.6.0 (modularization)
 - Split single-file `GI.latest.html` into `src/` with per-section files.
-- Added `(no longer used)` (Python-based, no external deps).
 - Moved contract + changelog to README.md.
 - License changed from AGPL v3 to Apache 2.0.
 - No behavioral change: `detectTense`, `chunk`, `render*` frozen.
