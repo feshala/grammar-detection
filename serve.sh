@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# serve.sh — start a local HTTP server for GI(latest).html
+# serve.sh — start a local HTTP server for GI.latest.html
 # Chrome and Edge block <script src="relative.js"> from file://.
 # This serves the repo root so src/js/*.js resolve normally.
 set -euo pipefail
@@ -10,7 +10,7 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 1
 fi
 echo "Grammar Identification — dev server"
-echo "Open: http://localhost:$PORT/GI(latest).html"
+echo "Open: http://localhost:$PORT/GI.latest.html"
 echo "Stop: Ctrl+C"
 echo
 exec python3 -m http.server "$PORT"

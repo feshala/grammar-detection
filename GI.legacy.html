@@ -1,0 +1,3109 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grammar Formula Highlighters(W12-C patched)</title>
+<style>
+  *{box-sizing:border-box}
+  :root{--bg:#fafafa;--fg:#222;--muted:#888;--line:#e2e2e2;--panel:#fff;--accent:#4a6ee0;--accent-bg:#eef3ff;--nav-h:68px;--ok:#2e8b57;--fail:#d9534f;--xfail:#e0a800}
+  [hidden]{display:none!important}
+  html{height:100%}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--fg);max-width:960px;margin:0 auto;min-height:100%;padding:11vh 16px calc(var(--nav-h) + 40px + env(safe-area-inset-bottom,0px));line-height:1.5;position:relative}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px;text-align:center}
+  p.sub{color:var(--muted);font-size:13px;margin:0 0 20px;text-align:center}
+  .search-box{max-width:560px;margin:0 auto}
+  .search-box textarea{width:100%;padding:12px 16px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:#fff;outline:none;resize:none;overflow-y:auto;font-family:inherit;line-height:1.5;min-height:48px;height:48px;display:block;transition:height .2s}
+  .search-box textarea:focus{border-color:#999}
+  .arrow-btn,.icon-btn,.lib-close,.textview-close{border:1px solid var(--line);background:#fff;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;font-family:inherit;transition:background .15s,border-color .15s,transform .1s}
+  .arrow-btn:active,.icon-btn:active,.textview-close:active{transform:scale(.95)}
+  .arrow-btn:focus,.icon-btn:focus,.textview-close:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .arrow-btn{width:40px;height:40px;border-radius:10px;color:#333;line-height:1}
+  .arrow-btn:hover{background:#f0f0f0;border-color:#ccc}
+  .icon-btn{width:44px;height:44px;border-radius:50%}
+  .icon-btn:disabled{opacity:.45;cursor:not-allowed}
+  .icon-btn.reset{color:#d9534f;border-color:#f3c2c0;background:#fff5f5}
+  .icon-btn.reset:hover:not(:disabled){background:#ffe6e6;border-color:#d9534f}
+  .icon-btn.go{color:#222}
+  .icon-btn.go:hover:not(:disabled){background:#f0f0f0}
+  .actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px}
+  .actions-right{display:flex;gap:12px;margin-left:auto}
+  .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:72px 16px 48px;text-align:center}
+  .loader{width:56px;height:56px;border-radius:50%;border:5px solid #e9e9e9;border-top-color:#1c1c1c;animation:loaderSpin .9s linear infinite}
+  @keyframes loaderSpin{to{transform:rotate(360deg)}}
+  .loading-text{font-size:13px;color:var(--muted);font-style:italic;letter-spacing:.01em}
+  #page-home.analyzing .tabs,#page-home.analyzing #output,#page-home.analyzing #legend,#page-home.analyzing .grid{display:none!important}
+  .tabs{display:flex;gap:6px;margin:56px 0 4px;padding-top:24px;border-top:1px solid var(--line);flex-wrap:wrap;justify-content:center}
+  .tabs button{padding:6px 12px;font-size:13px;cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:8px;font-family:inherit}
+  .tabs button:hover{background:#f0f0f0}
+  .tabs button.active{background:#222;color:#fff;border-color:#222}
+  #output{margin-top:20px;font-size:19px;line-height:2.4;text-align:center}
+  .tok{padding:3px 7px;border-radius:6px;margin:2px;display:inline-block;cursor:pointer;border-bottom:1px solid transparent}
+  .tok:hover{border-bottom-color:#666}
+  .tok.cont-mid{margin-left:-2px;border-top-left-radius:0;border-bottom-left-radius:0;padding-left:3px}
+  .tok.selected{outline:2px solid #444;outline-offset:1px}
+  .status{margin-top:12px;text-align:center;font-size:13px;color:var(--muted);font-style:italic}
+  #legend{margin-top:14px;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:#444;justify-content:center}
+  .legend-item{display:inline-flex;align-items:center;gap:5px}
+  .swatch{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:13.5px}
+  .card h3{font-size:13px;font-weight:600;margin:0 0 10px;color:#333;text-transform:uppercase;letter-spacing:.04em}
+  .card .kv{display:grid;grid-template-columns:140px 1fr;gap:6px 10px}
+  .card .kv dt{color:var(--muted)}
+  .card .kv dd{margin:0}
+  .full{grid-column:1/-1}
+  .issue{padding:8px 10px;border-radius:8px;margin-bottom:8px;font-size:13px}
+  .issue.error{background:#ffe6e6;border-left:3px solid #d9534f}
+  .issue.warn{background:#fff5d6;border-left:3px solid #e0a800}
+  .issue.info{background:#eef6ff;border-left:3px solid #4a90e2}
+  .muted{color:var(--muted)}
+  .expl{margin:6px 0 0;color:#555;font-size:12.5px}
+  code{background:#f0f0f0;padding:1px 5px;border-radius:4px;font-size:12px}
+  .gloss-link{color:var(--accent);background:var(--accent-bg);padding:1px 6px;border-radius:5px;cursor:pointer;border:none;border-bottom:1px dashed #a4b6ef;font-weight:500;font-size:inherit;font-family:inherit;transition:background .15s}
+  .gloss-link:hover{background:#dfe7ff;border-bottom-color:var(--accent)}
+  .gloss-link:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .view-more-btn{display:inline-block;margin-top:8px;padding:6px 14px;font-size:12.5px;cursor:pointer;border:1px solid var(--line);background:#fafafa;border-radius:8px;color:#333;font-family:inherit}
+  .view-more-btn:hover{background:#f0f0f0;border-color:#ccc}
+  .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;z-index:1000;opacity:0;pointer-events:none;visibility:hidden;transition:opacity .18s,visibility .18s;overscroll-behavior:contain}
+  .overlay[data-open="true"]{opacity:1;pointer-events:auto;visibility:visible}
+  .lib-overlay{background:rgba(20,20,30,.45)}
+  .lib-modal{background:#fff;border-radius:14px;width:100%;max-width:1000px;height:min(90vh,820px);display:flex;flex-direction:column;box-shadow:0 18px 60px rgba(0,0,0,.28);overflow:hidden;transform:translateY(8px);transition:transform .18s}
+  .lib-overlay[data-open="true"] .lib-modal{transform:translateY(0)}
+  .lib-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line);background:#fbfbfd}
+  .lib-header h2{font-size:16px;margin:0;font-weight:600}
+  .lib-header .lib-sub{font-size:12px;color:var(--muted);font-weight:400;margin-left:8px}
+  .lib-close{width:36px;height:36px;border-radius:50%;font-size:20px;line-height:1}
+  .lib-close:hover{background:#f2f2f2}
+  .lib-toolbar{padding:12px 20px;border-bottom:1px solid var(--line);background:#fff;display:flex;flex-direction:column;gap:10px}
+  .lib-search-wrap{position:relative}
+  .lib-search{width:100%;padding:10px 14px 10px 38px;border:1px solid var(--line);border-radius:10px;font-size:14px;background:#fafafa;outline:none;font-family:inherit}
+  .lib-search:focus{border-color:var(--accent);background:#fff}
+  .lib-search-wrap::before{content:"🔍";position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;opacity:.55}
+  .lib-cats{display:flex;gap:6px;flex-wrap:wrap}
+  .lib-cat{padding:5px 12px;font-size:12.5px;border:1px solid var(--line);background:#fff;border-radius:20px;cursor:pointer;white-space:nowrap;font-family:inherit}
+  .lib-cat:hover{background:#f3f3f3}
+  .lib-cat.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .lib-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  .lib-list-view,.lib-detail-view{flex:1;min-height:0;overflow-y:auto;padding:16px 20px 24px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .lib-list{display:flex;flex-direction:column;gap:8px}
+  .lib-item{text-align:left;width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer;display:flex;flex-direction:column;gap:4px;font-family:inherit}
+  .lib-item:hover{border-color:#bcc7e8;background:#fafbff}
+  .lib-item:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .lib-item .li-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .lib-item .li-name{font-weight:600;font-size:14px}
+  .lib-item .li-abbr{font-size:11.5px;color:#555;background:#f1f3f8;padding:1px 6px;border-radius:4px;font-family:ui-monospace,Menlo,monospace}
+  .lib-item .li-cat{font-size:10.5px;color:var(--accent);background:var(--accent-bg);padding:1px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.03em;margin-left:auto}
+  .lib-item .li-def{font-size:12.5px;color:#666}
+  .lib-empty{padding:32px 16px;text-align:center;color:var(--muted);font-size:13px}
+  .lib-empty strong{color:#333;display:block;margin-bottom:4px;font-size:14px}
+  .lib-back{padding:6px 12px;font-size:12.5px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;margin-bottom:14px;font-family:inherit}
+  .lib-back:hover{background:#f2f2f2}
+  .lib-detail h3{font-size:18px;margin:0 0 4px}
+  .lib-detail .ld-abbr{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#555;background:#f1f3f8;padding:2px 8px;border-radius:5px;margin-left:6px}
+  .lib-detail .ld-cat{font-size:11px;color:var(--accent);background:var(--accent-bg);padding:2px 10px;border-radius:20px;margin-left:6px;text-transform:uppercase;letter-spacing:.04em}
+  .lib-detail .ld-section{margin-top:14px}
+  .lib-detail .ld-section h4{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#666;margin:0 0 6px}
+  .lib-detail .ld-section p{margin:0;font-size:13.5px;line-height:1.65;color:#222}
+  .lib-detail .ld-formula{background:#f4f6fc;padding:10px 14px;border-radius:8px;font-family:ui-monospace,Menlo,monospace;font-size:13px;border-left:3px solid var(--accent)}
+  .lib-detail .ld-ex{background:#f7faf7;border-left:3px solid #66a06b;padding:10px 14px;border-radius:8px;margin-bottom:8px;font-size:13.5px}
+  .lib-detail .ld-ex .ex-sent{font-size:14px;margin-bottom:4px}
+  .lib-detail .ld-ex .ex-note{color:#555;font-size:12.5px}
+  .lib-detail .ld-ex u{text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:3px;font-weight:500}
+  .lib-detail .ld-related{display:flex;flex-wrap:wrap;gap:6px}
+  .lib-related-btn{padding:4px 12px;font-size:12.5px;border:1px solid var(--line);background:#fafafa;border-radius:20px;cursor:pointer;color:var(--accent);font-family:inherit}
+  .lib-related-btn:hover{background:var(--accent-bg);border-color:#c8d4f8}
+  .lib-detail .ld-simple{display:flex;gap:10px;align-items:flex-start;background:#fffbe6;border-left:3px solid #e0a800;padding:12px 14px;border-radius:8px;margin:12px 0 0;font-size:13.5px;line-height:1.65;color:#222}
+  .lib-detail .ld-simple .ld-simple-icon{font-size:18px;line-height:1;flex-shrink:0}
+  .lib-detail .ld-simple strong{color:#8a6d00;margin-right:4px}
+  .textview-overlay{background:#fff;display:block;padding:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .textview-close{position:fixed;top:calc(16px + env(safe-area-inset-top,0px));left:16px;width:44px;height:44px;border-radius:50%;color:#333;z-index:2;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+  .textview-close:hover{background:#f2f2f2}
+  .textview-content{max-width:720px;margin:0 auto;min-height:100vh;padding:calc(84px + env(safe-area-inset-top,0px)) 24px 60px;font-size:18px;line-height:1.8;white-space:pre-wrap;word-break:break-word;color:#222}
+  .textview-content:empty::before{content:"(Tidak ada teks untuk ditampilkan)";color:var(--muted);font-style:italic}
+  .settings-page{max-width:640px;margin:0 auto}
+  .settings-page h2{font-size:18px;margin:0 0 12px}
+  .settings-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;font-size:13.5px;margin-bottom:12px}
+  .settings-card h3{font-size:13px;font-weight:600;margin:0 0 8px;color:#333;text-transform:uppercase;letter-spacing:.04em}
+  .settings-card p{margin:0;color:#444}
+  .test-btn{padding:10px 18px;font-size:14px;background:#222;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600}
+  .test-btn:hover{background:#000}
+  .test-btn:focus{outline:2px solid var(--accent);outline-offset:2px}
+  .test-summary{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0;font-size:13px}
+  .test-summary .pill{padding:4px 12px;border-radius:20px;font-weight:600}
+  .test-summary .pill.ok{background:#e6f7ee;color:var(--ok)}
+  .test-summary .pill.fail{background:#ffe6e6;color:var(--fail)}
+  .test-summary .pill.xfail{background:#fff5d6;color:var(--xfail)}
+  .test-row{padding:10px 12px;border-radius:8px;margin-bottom:6px;font-size:12.5px;font-family:ui-monospace,Menlo,monospace;line-height:1.5}
+  .test-row.pass{background:#e6f7ee;border-left:3px solid var(--ok)}
+  .test-row.fail{background:#ffe6e6;border-left:3px solid var(--fail)}
+  .test-row.xfail{background:#fff5d6;border-left:3px solid var(--xfail)}
+  .test-row .sent{font-weight:600;color:#222}
+  .test-row .detail{color:#444;margin-top:4px;font-size:11.5px}
+  .test-row .tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;margin-right:6px;text-transform:uppercase;letter-spacing:.05em}
+  .test-row.pass .tag{background:var(--ok);color:#fff}
+  .test-row.fail .tag{background:var(--fail);color:#fff}
+  .test-row.xfail .tag{background:var(--xfail);color:#fff}
+  .bottom-nav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));padding-bottom:env(safe-area-inset-bottom,0px);background:#fff;border-top:1px solid var(--line);box-shadow:0 -6px 18px rgba(0,0,0,.06);display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;z-index:900;max-width:960px;margin:0 auto}
+  .nav-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:var(--nav-h);background:transparent;border:none;color:#666;font-family:inherit;font-size:11px;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
+  .nav-btn:hover{background:#f7f7f9;color:#333}
+  .nav-btn:active{background:#f0f0f2}
+  .nav-btn:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+  .nav-btn.active{color:var(--accent)}
+  .nav-btn.active svg{stroke:var(--accent)}
+  .page-hidden{display:none!important}
+  @media(max-width:640px){
+    .grid{grid-template-columns:1fr}
+    .card .kv{grid-template-columns:110px 1fr}
+    body{padding-top:6vh}
+    .overlay{padding:0}
+    .lib-overlay{align-items:stretch}
+    .lib-modal{max-width:100%;height:100%;border-radius:0}
+    .lib-header{padding:14px 16px}
+    .lib-toolbar,.lib-list-view,.lib-detail-view{padding-left:14px;padding-right:14px}
+    .lib-item .li-cat{margin-left:0}
+    .lib-detail h3{font-size:16px}
+    :root{--nav-h:64px}
+    .loading{padding:48px 16px 32px}
+    .textview-content{font-size:17px;padding-left:20px;padding-right:20px}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .search-box textarea,.overlay,.lib-modal,.nav-btn,.arrow-btn,.icon-btn,.textview-overlay{transition:none!important}
+    .loader{animation-duration:2.5s}
+  }
+</style>
+</head>
+<body>
+
+<div id="page-home">
+  <h1>Grammar Formula Highlighter</h1>
+  <p class="sub">Analisis grammar Inggris interaktif — klik kata atau frasa untuk melihat penjelasannya.</p>
+
+  <div class="search-box">
+    <textarea id="input" rows="1" spellcheck="false" autocomplete="off">She went to the market.</textarea>
+    <div class="actions">
+      <button id="fullview" class="arrow-btn" type="button" title="Lihat teks penuh" aria-label="Lihat teks penuh">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+        </svg>
+      </button>
+      <div class="actions-right">
+        <button id="reset" class="icon-btn reset" title="Hapus" aria-label="Reset">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+        <button id="go" class="icon-btn go" title="Analisis" aria-label="Analisa">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading" class="loading" hidden aria-live="polite">
+    <div class="loader" aria-hidden="true"></div>
+    <div class="loading-text">Menganalisis kalimat…</div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button data-mode="pos" class="active">Jenis Kata</button>
+    <button data-mode="phrase">Kelompok Kata</button>
+    <button data-mode="grammar">Rumus Grammar</button>
+  </div>
+
+  <div id="output"></div>
+  <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+  <div id="legend"></div>
+
+  <div class="grid">
+    <div class="card full" id="summary"><h3>Ringkasan Struktur</h3><div class="muted">—</div></div>
+    <div class="card" id="detail"><h3>Detail Kata</h3><div class="muted">Klik sebuah kata atau frasa di kalimat di atas.</div></div>
+    <div class="card" id="validation"><h3>Pemeriksaan Grammar</h3><div class="muted">—</div></div>
+    <div class="card full" id="patterns"><h3>Pola Grammar yang Terdeteksi</h3><div class="muted">—</div></div>
+  </div>
+</div>
+
+<div id="page-settings" class="settings-page page-hidden">
+  <h2>Settings</h2>
+  <div class="settings-card">
+    <h3>Tentang halaman ini</h3>
+    <p>Halaman pengaturan aplikasi. Pengaturan tambahan akan tersedia di bagian ini pada versi mendatang.</p>
+  </div>
+  <div class="settings-card">
+    <h3>Test Suite (Gelombang 12-C)</h3>
+    <p style="margin-bottom:12px">Jalankan korpus uji regresi. Target: <code id="target-count">auto</code>. xfail adalah test yang sengaja ditandai gagal sampai gelombang berikutnya.</p>
+    <button class="test-btn" id="run-tests" type="button">▶ Run Tests</button>
+    <div id="test-panel" hidden style="margin-top:16px"></div>
+  </div>
+</div>
+
+<div class="overlay textview-overlay" id="textview-overlay" data-open="false" hidden>
+  <button class="textview-close" id="textview-close" type="button" aria-label="Kembali" title="Kembali (Esc)">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  </button>
+  <div class="textview-content" id="textview-content"></div>
+</div>
+
+<div class="overlay lib-overlay" id="lib-overlay" data-open="false" hidden>
+  <div class="lib-modal" role="dialog" aria-modal="true" aria-labelledby="lib-title">
+    <header class="lib-header">
+      <h2 id="lib-title">Grammar Library <span class="lib-sub">Kamus istilah grammar dengan penjelasan sederhana</span></h2>
+      <button class="lib-close" id="lib-close" aria-label="Tutup library" title="Tutup (Esc)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </header>
+    <div class="lib-toolbar">
+      <div class="lib-search-wrap">
+        <input id="lib-search" class="lib-search" type="search" placeholder="Cari istilah atau singkatan... (mis. NP, VBN, kata bantu, lampau)" aria-label="Cari istilah grammar">
+      </div>
+      <div class="lib-cats" id="lib-cats" role="tablist" aria-label="Kategori istilah"></div>
+    </div>
+    <div class="lib-content">
+      <div class="lib-list-view" id="lib-list-view"><div class="lib-list" id="lib-list"></div></div>
+      <div class="lib-detail-view" id="lib-detail-view" hidden>
+        <button class="lib-back" id="lib-back">← Kembali ke daftar</button>
+        <div class="lib-detail" id="lib-detail"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="bottom-nav" role="navigation" aria-label="Navigasi utama">
+  <button class="nav-btn" data-page="library" aria-label="Buka Grammar Library" title="Library">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M4 4h11a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2V4z"/><path d="M17 6h3v14H6"/>
+    </svg>
+    <span>Library</span>
+  </button>
+  <button class="nav-btn active" data-page="home" aria-label="Halaman utama" title="Home">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>
+    </svg>
+    <span>Home</span>
+  </button>
+  <button class="nav-btn" data-page="settings" aria-label="Halaman pengaturan" title="Settings">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+    </svg>
+    <span>Settings</span>
+  </button>
+</nav>
+
+<script>
+/* ============================================================
+   KONTRAK VERIFIKASI — versi JS (grep target: "_CONTRACT")
+   ============================================================ */
+const _CONTRACT = {
+  version: '2.5.1',
+  wave: 'W12-C',
+  scope: [
+    'perbaikan pass kedua validate (W12-B):',
+    '(a) skip finit didahului TO/MD/aux',
+    '(b) batasi pencarian subjek pada relativizer terakhir'
+  ],
+  frozen: ['detectTense','chunk'],
+  get target() { return `${TEST_CORPUS.length} pass · 0 fail · 0 xfail`; },
+  nextWave: {
+    W13: 'refactor RULES, uncertain field asal tag, verdict coverage, preposisi pasangan-pasangan'
+  }
+};
+
+/* ============================================================
+   0. UTIL SHARED
+   ============================================================ */
+const VERB_TAGS = new Set(['VB','VBD','VBG','VBN','VBP','VBZ']);
+
+function computeNextNonNot(tokens) {
+  const n = tokens.length;
+  const arr = new Array(n).fill(n);
+  for (let i = n - 2; i >= 0; i--) {
+    const nx = tokens[i+1];
+    arr[i] = (nx && nx.tag === 'RB' && nx.lemma === 'not') ? arr[i+1] : i+1;
+  }
+  return arr;
+}
+
+function findVerbAfterAux(tokens, startIdx, maxHops) {
+  if (maxHops == null) maxHops = 4;
+  for (let k = 1; k <= maxHops && startIdx + k < tokens.length; k++) {
+    const t = tokens[startIdx + k];
+    if (VERB_TAGS.has(t.tag)) return startIdx + k;
+    if (/^(RB|PRP|DT|PRP\$|JJ|JJR|JJS|CD|WP|WDT|WRB|UH)$/.test(t.tag)) continue;
+    return -1;
+  }
+  return -1;
+}
+
+const QUANTIFIER_HEADS = new Set([
+  'lot','number','group','rest','majority','minority','part','half','all',
+  'some','most','none','plenty','couple','dozen','hundred','thousand','million','billion'
+]);
+function findSubjectHead(tokens, start, end) {
+  for (let i = start; i <= end; i++) {
+    const t = tokens[i];
+    if (t.text.toLowerCase() === 'one' && tokens[i+1] && tokens[i+1].lemma === 'of') {
+      return i;
+    }
+    if (/^(DT|PRP\$|CD|JJ|JJR|JJS|RB)$/.test(t.tag)) continue;
+    if (t.tag === 'WP' || t.tag === 'WDT' || t.tag === 'WRB') return -1;
+    if (t.tag === 'IN') {
+      if (t.text.toLowerCase() === 'of') {
+        const prevT = i > 0 ? tokens[i-1] : null;
+        const beforeQuant = i-2 >= 0 ? tokens[i-2] : null;
+        const isDefinite = beforeQuant && beforeQuant.tag === 'DT' && beforeQuant.text.toLowerCase() === 'the';
+        if (prevT && /^NN/.test(prevT.tag) && QUANTIFIER_HEADS.has(prevT.text.toLowerCase()) && !isDefinite) continue;
+      }
+      return -1;
+    }
+    if (/^(NN|NNS|NNP|PRP)$/.test(t.tag)) {
+      if (tokens[i+1] && tokens[i+1].tag === 'IN' && tokens[i+1].text.toLowerCase() === 'of' && QUANTIFIER_HEADS.has(t.text.toLowerCase())) {
+        const beforeQuant = i > 0 ? tokens[i-1] : null;
+        const isDefinite = beforeQuant && beforeQuant.tag === 'DT' && beforeQuant.text.toLowerCase() === 'the';
+        if (!isDefinite) continue;
+      }
+      return i;
+    }
+    if (t.tag === 'VBG') return i;
+    return -1;
+  }
+  return -1;
+}
+
+function getSubjectNumber(tokens, span) {
+  if (!span) return 'skip';
+  const headIdx = findSubjectHead(tokens, span.start, span.end);
+  if (headIdx >= 0) {
+    const h = tokens[headIdx], w = h.text.toLowerCase();
+    if (h.tag === 'PRP') {
+      if (w === 'i') return '1sg';
+      if (w === 'he' || w === 'she' || w === 'it') return '3sg';
+      return 'other';
+    }
+    if (h.tag === 'NNP' || h.tag === 'NN' || h.tag === 'VBG') return '3sg';
+    if (h.tag === 'CD' && w === 'one') return '3sg';
+    if (h.tag === 'NNS') return 'other';
+    return 'skip';
+  }
+  const last = tokens[span.end];
+  if (last.tag === 'PRP') {
+    const w = last.text.toLowerCase();
+    if (w === 'i') return '1sg';
+    if (w === 'he' || w === 'she' || w === 'it') return '3sg';
+    return 'other';
+  }
+  if (last.tag === 'DT') {
+    const w = last.text.toLowerCase();
+    if (w === 'this' || w === 'that') return '3sg';
+    if (w === 'these' || w === 'those') return 'other';
+  }
+  return 'skip';
+}
+
+/* ============================================================
+   1. LEXICON
+   ============================================================ */
+const LEX = {};
+const reg = (words, def) => (Array.isArray(words) ? words : [words]).forEach(w => LEX[w] = Object.assign({lemma:w}, def));
+
+reg(['i','me'], {t:'PRP',person:1,num:'sg'});
+reg('you', {t:'PRP',person:2,num:'sg'});
+reg(['he','she','it'], {t:'PRP',person:3,num:'sg'});
+reg('we', {t:'PRP',person:1,num:'pl'});
+reg('they', {t:'PRP',person:3,num:'pl'});
+reg(['him','us','them'], {t:'PRP'});
+reg('her', {t:'PRP',amb:['PRP$']});
+reg(['my','your','our','their','its'], {t:'PRP$'});
+reg('his', {t:'PRP$',amb:['PRP']});
+reg(['the','a','an','this','these','those','each','every','no','any'], {t:'DT'});
+reg('some', {t:'DT',amb:['PRP']});
+reg('that', {t:'DT',amb:['PRP','IN']});
+reg(['who','whom','what'], {t:'WP'});
+reg('whose', {t:'WP$'});
+reg('which', {t:'WDT'});
+reg(['when','where','why','how'], {t:'WRB'});
+reg(['of','in','on','at','from','with','without','for','by','about','into','onto','over','under','between','among','through','during','after','before','until','since','within','although','though','if','unless','while','as','than','upon','across','along','around','behind','below','beneath','beside','beyond','near','off','out','past','toward','towards','up','down','against','despite','besides','except','inside','outside','because'], {t:'IN'});
+reg('like', {t:'VB',amb:['IN']});
+reg('to', {t:'TO',amb:['IN']});
+reg(['and','or','but','so','yet','nor'], {t:'CC'});
+reg(['will','would','can','could','shall','should','may','might','must'], {t:'MD'});
+
+const AUX_BE = {am:'VBP',is:'VBZ',are:'VBP',was:'VBD',were:'VBD',be:'VB',been:'VBN',being:'VBG'};
+for (const f in AUX_BE) reg(f, {t:AUX_BE[f],lemma:'be',aux:true,form:f==='been'?'V3':f==='being'?'V-ing':(f==='was'||f==='were')?'V2':(f==='is'?'V-s':'V1')});
+const AUX_DO = {do:'VBP',does:'VBZ',did:'VBD'};
+for (const f in AUX_DO) reg(f, {t:AUX_DO[f],lemma:'do',aux:true,form:f==='did'?'V2':f==='does'?'V-s':'V1'});
+const AUX_HAVE = {have:'VBP',has:'VBZ',had:'VBD'};
+for (const f in AUX_HAVE) reg(f, {t:AUX_HAVE[f],lemma:'have',aux:true,form:f==='had'?'V2':f==='has'?'V-s':'V1'});
+
+reg(['not','very','always','never','often','sometimes','usually','already','just','too','also','here','there','now','then','soon','quite','rather','really','still','yesterday','today','tomorrow','again','yet','ever','once','twice','only','even','almost','enough','maybe','perhaps','please'], {t:'RB'});
+reg('well', {t:'RB',amb:['JJ']});
+reg('ago', {t:'RB'});
+reg(['go','eat','play','study','read','finish','want','learn','buy','write','move','pass','see','come','take','make','give','get','find','leave','say','tell','think','bring','run','speak','break','begin','like','love','hate','need','help','use','try','start','stop','open','close','put','keep','let','call','ask','answer','watch','listen','walk','talk','live','die','happen','change','carry','hold','turn','show','hear','feel','become','seem','know','mean','understand','remember','forget','wait','meet','pay','send','build','grow','sit','stand','lose','win','fall','rise','sing','swim','teach','catch','drive','fly','draw','wear','drink','sleep','wake','wash','clean','cook','prepare','belong','enjoy','prefer','decide','allow','invite','visit','arrive','return','travel','continue','improve','realize'], {t:'VB',form:'V1'});
+reg('work', {t:'NN',amb:['VB']});
+reg('water', {t:'NN',amb:['VB']});
+reg(['book','room','school','market','food','morning','evening','night','day','year','week','month','hour','minute','second','time','friend','family','home','house','city','country','world','life','way','thing','people','man','woman','child','student','teacher','author','exam','test','homework','breakfast','lunch','dinner','car','tree','dog','cat','table','chair','door','window','hand','head','eye','face','money','job','idea','problem','question','answer','story','word','name','number','part','place','church','office','hospital','football','basketball','sport','game','music','song','movie','language','letter','email','message','phone','computer','internet','island','mountain','river','sea','ocean','sky','sun','moon','star','air','fire','earth','garden','park','street','road','village','town','area','size','type','kind','form','color','shape','sound','taste','smell','dream','plan','reason','result','effect','cause','purpose','goal','future','past','present'], {t:'NN'});
+reg(['sister','mother','father','brother','daughter','son','uncle','aunt'], {t:'NN'});
+reg(['engineer','lawyer','nurse','doctor','dentist','scientist'], {t:'NN'});
+reg(['english','indonesia','america','london','paris','jakarta','john','mary','monday','tuesday','wednesday','thursday','friday','saturday','sunday','january','february','march','april','may','june','july','august','september','october','november','december'], {t:'NNP'});
+reg(['james','charles','thomas','robert','william','david','michael','richard','joseph','daniel','paul','george','edward','henry','peter','andrew','mark','stephen','tom'], {t:'NNP'});
+reg(['good','bad','big','small','large','little','long','short','high','low','old','new','young','happy','sad','difficult','easy','important','beautiful','ugly','nice','kind','different','same','right','wrong','true','false','hot','cold','warm','cool','slow','soft','strong','weak','rich','poor','clean','dirty','full','empty','quick','tall','heavy','light','dark','bright','clear','safe','dangerous','interesting','boring','tired','hungry','thirsty','sick','healthy','ready','busy','free','sure','main','only','real','simple','common','possible','impossible','necessary','useful','careful','angry','glad','sorry','proud','afraid','lucky','unlucky','smart','clever','stupid','funny','serious','quiet','loud','expensive','cheap','modern','ancient','famous','popular'], {t:'JJ'});
+reg(['fast','hard','late','early','far'], {t:'JJ',amb:['RB']});
+reg(['exciting','tiring','amazing','boring'], {t:'JJ', amb:['VBG']});
+reg(['interested','excited','bored','tired'], {t:'JJ', amb:['VBN']});
+reg(['one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','twenty','thirty','forty','fifty','hundred','thousand','million','billion','first','second','third','fourth','fifth'], {t:'CD'});
+reg(['oh','wow','hey','hi','hello','yes','okay','ok'], {t:'UH'});
+
+reg(['children','people','men','women','feet','teeth','mice','geese','oxen'], {t:'NNS', num:'pl'});
+reg('news', {t:'NN'});
+reg(['mathematics','physics','politics','economics','statistics','linguistics','athletics','gymnastics','measles','mumps','rabies','ethics','diabetes'], {t:'NN'});
+const NUMBER_INVARIANT = new Set(['sheep','fish','deer','moose','aircraft','series','species','offspring','means']);
+
+reg(['friendly','lonely','lovely','silly','ugly','holy','likely','unlikely','early','daily','weekly','monthly','yearly'], {t:'JJ'});
+reg(['order','other','paper','matter','member','layer','banner','proper','tender','sober','eager'], {t:'NN'});
+reg(['suggest','request','interest','invest','protest','arrest','harvest','digest','manifest','forest'], {t:'VB',amb:['NN']});
+reg(['apply','multiply','imply','comply','rely','deny','identify','qualify','modify','specify','verify','justify','satisfy','clarify','classify','occupy'], {t:'VB'});
+reg(['reply','supply','study'], {t:'VB',amb:['NN']});
+reg('forest', {t:'NN'});
+
+reg(['advice','information','furniture','equipment','luggage','baggage','traffic','weather','knowledge','research','progress','permission'], {t:'NN'});
+const UNCOUNTABLE = new Set([
+  'advice','homework','information','furniture','equipment','luggage','baggage',
+  'traffic','weather','knowledge','rice','sugar','salt','butter','cheese',
+  'wool','cotton','wood','iron','steel','research','progress','permission',
+  'money','music','bread','water','milk','coffee','tea','food','fruit',
+  'news','work','help','fun','luck','hope','peace','patience'
+]);
+
+reg('more', {t:'RB', amb:['JJR']});
+reg(['agree','discuss','marry'], {t:'VB', form:'V1'});
+reg('married', {t:'JJ'});
+
+const DURATION_UNITS = new Set(['minute','second','hour','day','week','month','year','decade','century']);
+const INSTITUTIONAL_NN = new Set([
+  'school','work','home','church','bed','prison','jail','hospital','college','university',
+  'class','office','town','sea','breakfast','lunch','dinner',
+  'mathematics','physics','politics','economics','statistics','linguistics',
+  'athletics','gymnastics','measles','mumps','rabies','ethics','diabetes'
+]);
+const ARTICLE_REQUIRED_NN = new Set([
+  'book','table','chair','door','window','car','tree','dog','cat',
+  'house','room','letter','phone',
+  'student','teacher','author','friend',
+  'engineer','lawyer','nurse','doctor','dentist','scientist',
+  'exam','test','movie','song','story','question','answer','problem','idea','plan',
+  'city','country'
+]);
+
+/* ============================================================
+   2. IRREGULAR VERBS
+   ============================================================ */
+const IRREG = {
+  went:{lemma:'go',tag:'VBD',form:'V2'}, ate:{lemma:'eat',tag:'VBD',form:'V2'},
+  saw:{lemma:'see',tag:'VBD',form:'V2'}, came:{lemma:'come',tag:'VBD',form:'V2'},
+  took:{lemma:'take',tag:'VBD',form:'V2'}, gave:{lemma:'give',tag:'VBD',form:'V2'},
+  got:{lemma:'get',tag:'VBD',form:'V2'}, found:{lemma:'find',tag:'VBD',form:'V2'},
+  left:{lemma:'leave',tag:'VBD',form:'V2'}, said:{lemma:'say',tag:'VBD',form:'V2'},
+  told:{lemma:'tell',tag:'VBD',form:'V2'}, thought:{lemma:'think',tag:'VBD',form:'V2'},
+  brought:{lemma:'bring',tag:'VBD',form:'V2'}, wrote:{lemma:'write',tag:'VBD',form:'V2'},
+  ran:{lemma:'run',tag:'VBD',form:'V2'}, spoke:{lemma:'speak',tag:'VBD',form:'V2'},
+  broke:{lemma:'break',tag:'VBD',form:'V2'}, began:{lemma:'begin',tag:'VBD',form:'V2'},
+  bought:{lemma:'buy',tag:'VBD',form:'V2'}, built:{lemma:'build',tag:'VBD',form:'V2'},
+  held:{lemma:'hold',tag:'VBD',form:'V2'}, lost:{lemma:'lose',tag:'VBD',form:'V2'},
+  won:{lemma:'win',tag:'VBD',form:'V2'}, fell:{lemma:'fall',tag:'VBD',form:'V2'},
+  rose:{lemma:'rise',tag:'VBD',form:'V2'}, sang:{lemma:'sing',tag:'VBD',form:'V2'},
+  swam:{lemma:'swim',tag:'VBD',form:'V2'}, taught:{lemma:'teach',tag:'VBD',form:'V2'},
+  caught:{lemma:'catch',tag:'VBD',form:'V2'}, drove:{lemma:'drive',tag:'VBD',form:'V2'},
+  flew:{lemma:'fly',tag:'VBD',form:'V2'}, drew:{lemma:'draw',tag:'VBD',form:'V2'},
+  wore:{lemma:'wear',tag:'VBD',form:'V2'}, drank:{lemma:'drink',tag:'VBD',form:'V2'},
+  slept:{lemma:'sleep',tag:'VBD',form:'V2'}, woke:{lemma:'wake',tag:'VBD',form:'V2'},
+  sat:{lemma:'sit',tag:'VBD',form:'V2'}, stood:{lemma:'stand',tag:'VBD',form:'V2'},
+  read:{lemma:'read',tag:'VBD',form:'V2',amb:['VBP','VBN']},
+  gone:{lemma:'go',tag:'VBN',form:'V3'}, eaten:{lemma:'eat',tag:'VBN',form:'V3'},
+  seen:{lemma:'see',tag:'VBN',form:'V3'}, come:{lemma:'come',tag:'VBN',form:'V3',amb:['VBP']},
+  taken:{lemma:'take',tag:'VBN',form:'V3'}, made:{lemma:'make',tag:'VBN',form:'V3',amb:['VBD']},
+  given:{lemma:'give',tag:'VBN',form:'V3'}, gotten:{lemma:'get',tag:'VBN',form:'V3'},
+  written:{lemma:'write',tag:'VBN',form:'V3'}, run:{lemma:'run',tag:'VBN',form:'V3',amb:['VBP']},
+  spoken:{lemma:'speak',tag:'VBN',form:'V3'}, broken:{lemma:'break',tag:'VBN',form:'V3'},
+  begun:{lemma:'begin',tag:'VBN',form:'V3'}, fallen:{lemma:'fall',tag:'VBN',form:'V3'},
+  risen:{lemma:'rise',tag:'VBN',form:'V3'}, sung:{lemma:'sing',tag:'VBN',form:'V3'},
+  swum:{lemma:'swim',tag:'VBN',form:'V3'}, driven:{lemma:'drive',tag:'VBN',form:'V3'},
+  flown:{lemma:'fly',tag:'VBN',form:'V3'}, drawn:{lemma:'draw',tag:'VBN',form:'V3'},
+  worn:{lemma:'wear',tag:'VBN',form:'V3'}, drunk:{lemma:'drink',tag:'VBN',form:'V3'},
+  woken:{lemma:'wake',tag:'VBN',form:'V3'}
+};
+
+const V2_EQ_V3 = new Set([
+  'left','said','told','brought','bought','caught','taught','thought',
+  'found','held','lost','won','sat','stood','built','got','slept','read'
+]);
+
+/* ============================================================
+   3. CONTRACTIONS
+   ============================================================ */
+const C = {
+  "don't":[['do','VBP','do','V1',1],["n't",'RB','not',null,0]],
+  "doesn't":[['does','VBZ','do','V-s',1],["n't",'RB','not',null,0]],
+  "didn't":[['did','VBD','do','V2',1],["n't",'RB','not',null,0]],
+  "isn't":[['is','VBZ','be','V-s',1],["n't",'RB','not',null,0]],
+  "aren't":[['are','VBP','be','V1',1],["n't",'RB','not',null,0]],
+  "wasn't":[['was','VBD','be','V2',1],["n't",'RB','not',null,0]],
+  "weren't":[['were','VBD','be','V2',1],["n't",'RB','not',null,0]],
+  "haven't":[['have','VBP','have','V1',1],["n't",'RB','not',null,0]],
+  "hasn't":[['has','VBZ','have','V-s',1],["n't",'RB','not',null,0]],
+  "hadn't":[['had','VBD','have','V2',1],["n't",'RB','not',null,0]],
+  "can't":[['can','MD','can',null,0],["n't",'RB','not',null,0]],
+  "cannot":[['can','MD','can',null,0],['not','RB','not',null,0]],
+  "couldn't":[['could','MD','could',null,0],["n't",'RB','not',null,0]],
+  "won't":[['will','MD','will',null,0],["n't",'RB','not',null,0]],
+  "wouldn't":[['would','MD','would',null,0],["n't",'RB','not',null,0]],
+  "shouldn't":[['should','MD','should',null,0],["n't",'RB','not',null,0]],
+  "mustn't":[['must','MD','must',null,0],["n't",'RB','not',null,0]],
+  "i've":[['I','PRP',null,null,0],['have','VBP','have','V1',1]],
+  "i'm":[['I','PRP',null,null,0],['am','VBP','be','V1',1]],
+  "i'd":[['I','PRP',null,null,0],['would','MD','would',null,0]],
+  "i'll":[['I','PRP',null,null,0],['will','MD','will',null,0]],
+  "you're":[['you','PRP',null,null,0],['are','VBP','be','V1',1]],
+  "you've":[['you','PRP',null,null,0],['have','VBP','have','V1',1]],
+  "you'll":[['you','PRP',null,null,0],['will','MD','will',null,0]],
+  "you'd":[['you','PRP',null,null,0],['would','MD','would',null,0]],
+  "we're":[['we','PRP',null,null,0],['are','VBP','be','V1',1]],
+  "we've":[['we','PRP',null,null,0],['have','VBP','have','V1',1]],
+  "we'll":[['we','PRP',null,null,0],['will','MD','will',null,0]],
+  "we'd":[['we','PRP',null,null,0],['would','MD','would',null,0]],
+  "they're":[['they','PRP',null,null,0],['are','VBP','be','V1',1]],
+  "they've":[['they','PRP',null,null,0],['have','VBP','have','V1',1]],
+  "they'll":[['they','PRP',null,null,0],['will','MD','will',null,0]],
+  "they'd":[['they','PRP',null,null,0],['would','MD','would',null,0]],
+  "he's":[['he','PRP',null,null,0],['is','VBZ','be','V-s',1]],
+  "she's":[['she','PRP',null,null,0],['is','VBZ','be','V-s',1]],
+  "it's":[['it','PRP',null,null,0],['is','VBZ','be','V-s',1]],
+  "that's":[['that','PRP',null,null,0],['is','VBZ','be','V-s',1]],
+  "what's":[['what','WP',null,null,0],['is','VBZ','be','V-s',1]],
+  "he'll":[['he','PRP',null,null,0],['will','MD','will',null,0]],
+  "she'll":[['she','PRP',null,null,0],['will','MD','will',null,0]],
+  "it'll":[['it','PRP',null,null,0],['will','MD','will',null,0]],
+  "he'd":[['he','PRP',null,null,0],['would','MD','would',null,0]],
+  "she'd":[['she','PRP',null,null,0],['would','MD','would',null,0]],
+  "it'd":[['it','PRP',null,null,0],['would','MD','would',null,0]],
+  "there's":[['there','RB',null,null,0],['is','VBZ','be','V-s',1]],
+  "who's":[['who','WP',null,null,0],['is','VBZ','be','V-s',1]],
+  "let's":[['let','VB',null,null,0],['us','PRP',null,null,0]]
+};
+const ING_NOUNS = new Set(['morning','evening','thing','something','anything','nothing','everything','king','ring','spring','string','ceiling','opening','sibling','darling','offering','suffering']);
+
+/* ============================================================
+   4. TOKENIZER + TAGGER
+   ============================================================ */
+function normalizeQuotes(text) {
+  return String(text)
+    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035\u02BC]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"');
+}
+
+function tokenize(text) {
+  const normalized = normalizeQuotes(text);
+  const raw = normalized.match(/[A-Za-z]+(?:'[A-Za-z]+)?|\d+(?:\.\d+)?|[.,!?;:()"]/g) || [];
+  const out = [];
+  for (const w of raw) {
+    const parts = C[w.toLowerCase()];
+    if (parts) {
+      parts.forEach((p, i) => out.push({
+        text: p[0], tag: p[1], lemma: p[2], form: p[3], aux: !!p[4],
+        raw: w, contStart: i === 0, contEnd: i === parts.length - 1, isCont: true,
+        uncertain: false
+      }));
+    } else {
+      out.push({ text: w, raw: w, tag: null, lemma: null, form: null, contStart: true, contEnd: true, isCont: false, uncertain: true });
+    }
+  }
+  return out;
+}
+
+const isVerbWord = w => {
+  const e = LEX[w.toLowerCase()];
+  if (!e) return !!IRREG[w.toLowerCase()];
+  return /^VB/.test(e.t) || (e.amb && e.amb.includes('VB'));
+};
+
+function stemS(w) {
+  if (!w || w.length < 3) return w;
+  const inLex = s => !!(LEX[s] || IRREG[s]);
+  const a = w.slice(0, -1);
+  const b = w.endsWith('es') ? w.slice(0, -2) : null;
+  if (inLex(a)) return a;
+  if (b && inLex(b)) return b;
+  if (w.endsWith('ies')) return w.slice(0, -3) + 'y';
+  if (w.endsWith('es'))  return w.slice(0, -2);
+  return w.slice(0, -1);
+}
+function stemEd(w) {
+  if (w.endsWith('ied')) return w.slice(0, -3) + 'y';
+  if (w.endsWith('ed')) {
+    const inLex = s => !!(LEX[s] || IRREG[s]);
+    const noEd = w.slice(0, -2);
+    const noD  = w.slice(0, -1);
+    if (inLex(noD) && !inLex(noEd)) return noD;
+    if (inLex(noEd)) return noEd;
+    if (noEd.length >= 2 && noEd[noEd.length-1] === noEd[noEd.length-2] && !/[aeiou]/.test(noEd[noEd.length-1])) {
+      const shortened = noEd.slice(0, -1);
+      if (inLex(shortened)) return shortened;
+    }
+    return noEd;
+  }
+  return w;
+}
+function stemIng(w) {
+  let s = w.slice(0, -3);
+  const inLex = x => !!(LEX[x] || IRREG[x]);
+  if (inLex(s)) return s;
+  if (s.length>=3 && !/[aeiou]$/.test(s)) {
+    const g = s+'e';
+    if (inLex(g)) return g;
+  }
+  if (s.length>=2 && s[s.length-1]===s[s.length-2] && !/[aeiou]/.test(s[s.length-1])) {
+    const cut = s.slice(0, -1);
+    if (inLex(cut)) return cut;
+  }
+  return s;
+}
+
+function tagOne(tokens, i) {
+  const t = tokens[i];
+  if (t.tag) return;
+  t.uncertain = true;
+  const raw = t.text, w = raw.toLowerCase();
+  const prev = i > 0 ? tokens[i-1] : null;
+  const next = i < tokens.length-1 ? tokens[i+1] : null;
+  const prevTag = prev ? prev.tag : null;
+
+  if (/^[.,!?;:()"]$/.test(raw)) { t.tag = 'PUNCT'; t.uncertain = false; return; }
+  if (/^\d/.test(raw)) { t.tag = 'CD'; t.lemma = raw; t.uncertain = false; return; }
+
+  if (w === 'to') {
+    const vish = next && (isVerbWord(next.text) || IRREG[next.text.toLowerCase()]);
+    t.tag = vish ? 'TO' : 'IN'; t.lemma = 'to';
+    t.uncertain = false;
+    if (!vish) t.toPrep = true;
+    return;
+  }
+  if (w === 'that') {
+    const nn = next && /^(NN|NNS|NNP|JJ|DT|CD)$/.test(next.tag || LEX[next.text.toLowerCase()]?.t || '');
+    t.tag = nn ? 'DT' : 'IN'; t.lemma = 'that';
+    if (!nn) t.amb = ['DT','PRP'];
+    return;
+  }
+  if (w === 'her' || w === 'his') {
+    const nn = next && /^(NN|NNS|NNP|JJ)$/.test(next.tag || LEX[next.text.toLowerCase()]?.t || '');
+    t.tag = nn ? 'PRP$' : 'PRP'; t.lemma = w;
+    return;
+  }
+  if (w === 'like') {
+    const pAux = prev && (prev.aux || prevTag === 'MD');
+    const pSubj = prev && /^(PRP|NN|NNP|NNS)$/.test(prevTag||'') && !(next && next.tag === 'PUNCT');
+    if (prevTag === 'TO' || pAux || pSubj) { t.tag = 'VB'; t.lemma = 'like'; t.form = 'V1'; t.amb = ['IN']; }
+    else { t.tag = 'IN'; t.lemma = 'like'; t.amb = ['VB']; }
+    return;
+  }
+  if (['fast','hard','late','early','far'].includes(w)) {
+    const pBe = prev && prev.lemma === 'be';
+    const nn = next && /^(NN|NNS|NNP)$/.test(next.tag || LEX[next.text.toLowerCase()]?.t || '');
+    if (pBe || nn) { t.tag = 'JJ'; t.lemma = w; t.amb = ['RB']; }
+    else { t.tag = 'RB'; t.lemma = w; t.amb = ['JJ']; }
+    return;
+  }
+
+  const lex = LEX[w];
+  if (lex) {
+    if (IRREG[w]?.form === 'V3' && ((prev?.lemma === 'have' && prev.aux) || (prev?.lemma === 'be' && prev.aux))) {
+      const ir = IRREG[w];
+      t.tag = ir.tag; t.lemma = ir.lemma; t.form = ir.form;
+      if (ir.amb) t.amb = ir.amb.slice();
+      t.uncertain = false;
+      return;
+    }
+    t.tag = lex.t; t.lemma = lex.lemma || w; t.form = lex.form;
+    if (lex.aux) t.aux = true;
+    if (lex.person) t.person = lex.person;
+    if (lex.num) t.num = lex.num;
+    if (lex.amb) t.amb = lex.amb.slice();
+    if (t.amb?.includes('VB')) {
+      const afterAux = prev && (prev.aux || prevTag === 'MD' || prevTag === 'TO');
+      const afterSubj = prev && prevTag === 'PRP' && !(next && next.tag === 'PUNCT');
+      if (afterAux || afterSubj) { t.tag = 'VB'; t.form = 'V1'; }
+    }
+    if (t.tag === 'VB' && t.amb?.includes('NN') && prevTag && /^(DT|PRP\$|JJ)$/.test(prevTag)) {
+      t.tag = 'NN'; t.form = null;
+    }
+    t.uncertain = false;
+    return;
+  }
+  if (IRREG[w]) {
+    const ir = IRREG[w];
+    if (ir.tag === 'VBD' && V2_EQ_V3.has(w)) {
+      let k = i - 1;
+      while (k >= 0 && tokens[k].tag === 'RB') k--;
+      const before = k >= 0 ? tokens[k] : null;
+      const afterHave = before && before.lemma === 'have' && before.aux;
+      const afterBe   = before && before.lemma === 'be'   && before.aux;
+      if (afterHave || afterBe) {
+        t.tag = 'VBN'; t.lemma = ir.lemma; t.form = 'V3';
+        if (ir.amb) t.amb = ir.amb.slice();
+        t.uncertain = false;
+        return;
+      }
+    }
+    t.tag = ir.tag; t.lemma = ir.lemma; t.form = ir.form;
+    if (ir.amb) t.amb = ir.amb.slice();
+    t.uncertain = false;
+    return;
+  }
+  if (w.length > 4 && w.endsWith('ing')) {
+    const nounCtx = prevTag === 'DT' || prevTag === 'PRP$' || prevTag === 'JJ';
+    if (ING_NOUNS.has(w)) { t.tag = 'NN'; t.lemma = w; t.uncertain = false; }
+    else {
+      const stem = stemIng(w);
+      t.tag = 'VBG'; t.lemma = stem; t.form = 'V-ing';
+      if (nounCtx) t.amb = ['NN'];
+      if (LEX[stem] || IRREG[stem]) t.uncertain = false;
+    }
+    return;
+  }
+  if (w.length > 4 && w.endsWith('ed')) {
+    let k = i - 1;
+    while (k >= 0 && tokens[k].tag === 'RB' && tokens[k].lemma === 'not') k--;
+    const before = k >= 0 ? tokens[k] : null;
+    const pHave = before && before.lemma === 'have';
+    const pBe = before && before.lemma === 'be';
+    const stem = stemEd(w);
+    const knownStem = !!(LEX[stem] || IRREG[stem]);
+    if (pHave || pBe) { t.tag = 'VBN'; t.form = 'V3'; t.lemma = stem; t.uncertain = false; }
+    else { t.tag = 'VBD'; t.form = 'V2'; t.lemma = stem; t.amb = ['VBN','JJ']; if (knownStem) t.uncertain = false; }
+    return;
+  }
+  if (w.length > 2 && w.endsWith('s') && !/(ss|us|is)$/.test(w)) {
+    const stem = stemS(w), se = LEX[stem];
+    if (se && /^VB/.test(se.t)) { t.tag = 'VBZ'; t.form = 'V-s'; t.lemma = stem; t.uncertain = false; return; }
+    if (IRREG[stem] && /V[BD]/.test(IRREG[stem].tag)) { t.tag = 'VBZ'; t.form = 'V-s'; t.lemma = stem; t.uncertain = false; return; }
+    if (se && /^NN/.test(se.t)) { t.tag = 'NNS'; t.lemma = stem; t.uncertain = false; return; }
+    t.tag = 'NNS'; t.lemma = stem; t.amb = ['VBZ']; return;
+  }
+  if (w.length > 4 && w.endsWith('ly')) { t.tag = 'RB'; t.lemma = w; return; }
+  if (w.length > 5 && w.endsWith('est')) { t.tag = 'JJS'; t.lemma = w; return; }
+  if (w.length > 4 && w.endsWith('er') && w.length <= 6) { t.tag = 'JJR'; t.lemma = w; t.amb = ['NN']; return; }
+  if (w.length > 4 && /(tion|sion|ment|ness|ity|ance|ence|ship|hood|dom|ism)$/.test(w)) { t.tag = 'NN'; t.lemma = w; return; }
+  if (w.length > 4 && /(ful|ous|ive|able|ible|ical|ic|al)$/.test(w)) { t.tag = 'JJ'; t.lemma = w; return; }
+
+  if (prevTag === 'MD') { t.tag = 'VB'; t.lemma = w; t.form = 'V1'; return; }
+  if (prevTag === 'DT' || prevTag === 'PRP$' || prevTag === 'CC' || prevTag === 'IN' || prevTag === 'JJ') { t.tag = 'NN'; t.lemma = w; return; }
+  if (prevTag === 'TO') { t.tag = 'VB'; t.lemma = w; t.form = 'V1'; return; }
+  t.tag = 'NN'; t.lemma = w; t.unknown = true;
+}
+
+function markAux(tokens) {
+  const n = tokens.length;
+  for (let i = 0; i < n; i++) {
+    const t = tokens[i];
+    if (t.tag === 'MD') { t.aux = true; continue; }
+    if (t.lemma === 'be' || t.lemma === 'do' || t.lemma === 'have') {
+      t.aux = findVerbAfterAux(tokens, i) > 0;
+    } else t.aux = false;
+  }
+}
+
+function fixAmbiguousIs(tokens) {
+  for (let i = 0; i < tokens.length - 1; i++) {
+    const t = tokens[i], n = tokens[i+1];
+    if (t.lemma === 'be' && t.isCont && /^(he|she|it|that|what)'s$/i.test(t.raw) && n.tag === 'VBN') {
+      t.text = 'has'; t.tag = 'VBZ'; t.lemma = 'have'; t.form = 'V-s';
+    }
+  }
+}
+
+function tagAll(tokens) {
+  for (let i = 0; i < tokens.length; i++) tagOne(tokens, i);
+  fixAmbiguousIs(tokens);
+  markAux(tokens);
+}
+
+/* ============================================================
+   5. CHUNKER
+   ============================================================ */
+function detectNP(tokens, i) {
+  let j = i, head = false;
+  if (tokens[j] && (tokens[j].tag === 'DT' || tokens[j].tag === 'PRP$')) j++;
+  while (tokens[j] && /^(JJ|JJR|JJS|CD)$/.test(tokens[j].tag)) j++;
+  if (tokens[j] && /^(NN|NNS|NNP|PRP)$/.test(tokens[j].tag)) { head = true; j++; }
+  return head ? { start: i, end: j - 1 } : null;
+}
+
+function normalizeSpans(spans) {
+  if (spans.length <= 1) return spans;
+  const sorted = spans.slice().sort((a, b) => a.start - b.start || b.end - a.end);
+  const out = [];
+  for (const s of sorted) {
+    const last = out[out.length - 1];
+    if (last && s.start <= last.end) continue;
+    out.push(s);
+  }
+  return out;
+}
+
+function chunk(tokens) {
+  const spans = [];
+  let i = 0;
+  while (i < tokens.length) {
+    const t = tokens[i];
+    if (t.tag === 'PUNCT' || t.tag === 'CC') { i++; continue; }
+    if (t.tag === 'IN') {
+      const np = detectNP(tokens, i + 1);
+      const after = np ? tokens[np.end + 1] : null;
+      const subord = after && /^(VBP|VBZ|VBD|MD)$/.test(after.tag);
+      if (np && !subord) { spans.push({start:i, end:np.end, type:'PP', label:'Kelompok Kata Depan'}); i = np.end + 1; continue; }
+    }
+    if (t.tag === 'TO') {
+      let j = i + 1;
+      while (j < tokens.length && /^(VB|VBP|VBZ)$/.test(tokens[j].tag)) j++;
+      const np = detectNP(tokens, j);
+      if (np) j = np.end + 1;
+      if (j > i + 1) { spans.push({start:i, end:j-1, type:'InfP', label:'Kelompok Kata Kerja Dasar (to + V1)'}); i = j; continue; }
+    }
+    if (t.tag === 'VBG') {
+      let j = i + 1;
+      const np = detectNP(tokens, j);
+      if (np) j = np.end + 1;
+      spans.push({start:i, end:j-1, type:'GerP', label:'Kelompok Kata Kerja -ing'}); i = j; continue;
+    }
+    if (/^(MD|VB|VBD|VBG|VBN|VBP|VBZ)$/.test(t.tag)) {
+      let j = i;
+      while (j < tokens.length) {
+        if (/^(MD|VB|VBD|VBG|VBN|VBP|VBZ)$/.test(tokens[j].tag)) j++;
+        else if (tokens[j].tag === 'RB' && tokens[j].lemma === 'not') j++;
+        else break;
+      }
+      if (j > i) { spans.push({start:i, end:j-1, type:'VP', label:'Kelompok Kata Kerja'}); i = j; continue; }
+    }
+    const np = detectNP(tokens, i);
+    if (np) { spans.push({start:np.start, end:np.end, type:'NP', label:'Kelompok Kata Benda'}); i = np.end + 1; continue; }
+    if (/^(JJ|JJR|JJS)$/.test(t.tag)) {
+      let j = i; while (j < tokens.length && /^(JJ|JJR|JJS)$/.test(tokens[j].tag)) j++;
+      spans.push({start:i, end:j-1, type:'AdjP', label:'Kelompok Kata Sifat'}); i = j; continue;
+    }
+    if (t.tag === 'RB') {
+      let j = i; while (j < tokens.length && tokens[j].tag === 'RB') j++;
+      spans.push({start:i, end:j-1, type:'AdvP', label:'Kelompok Kata Keterangan'}); i = j; continue;
+    }
+    i++;
+  }
+  return normalizeSpans(spans);
+}
+
+/* ============================================================
+   6. STRUCTURE ANALYZER
+   ============================================================ */
+const CLAUSE_SUBORDINATORS = new Set([
+  'that','because','if','although','though','while','unless','since',
+  'after','before','until','whenever','whether'
+]);
+function splitClauses(tokens) {
+  const clauses = [];
+  let start = 0, seenVerb = false;
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (/^(VB|VBD|VBG|VBN|VBP|VBZ|MD)$/.test(t.tag)) seenVerb = true;
+    let split = false;
+    if (t.tag === 'PUNCT' && /[.!?]/.test(t.text)) split = true;
+    else if (t.tag === 'CC' && seenVerb && i > start) split = true;
+    else if (t.tag === 'IN' && CLAUSE_SUBORDINATORS.has(t.text.toLowerCase()) && seenVerb && i > start) {
+      const after = tokens[i+1];
+      if (after && /^(PRP|NN|NNS|NNP)$/.test(after.tag)) split = true;
+    }
+    else if (t.tag === 'WRB' && seenVerb && i > start) {
+      const after = tokens[i+1];
+      if (after && /^(PRP|NN|NNS|NNP)$/.test(after.tag)) split = true;
+    }
+    else if (t.tag === 'PUNCT' && t.text === ',' && seenVerb && i > start) {
+      const firstTok = tokens[start];
+      const startIsSubord = firstTok && firstTok.tag === 'IN' && CLAUSE_SUBORDINATORS.has(firstTok.text.toLowerCase());
+      if (startIsSubord) split = true;
+    }
+    if (split) {
+      if (i - 1 >= start) clauses.push({start, end: i - 1});
+      start = i + 1;
+      seenVerb = false;
+    }
+  }
+  if (start < tokens.length) clauses.push({start, end: tokens.length - 1});
+  return clauses.filter(c => c.start <= c.end);
+}
+
+function analyzeStructure(tokens, spans, rangeStart, rangeEnd) {
+  if (rangeStart == null) rangeStart = 0;
+  if (rangeEnd == null) rangeEnd = tokens.length - 1;
+  const vpSpans = spans.filter(s => s.type === 'VP' && s.start >= rangeStart && s.end <= rangeEnd);
+  if (!vpSpans.length) return {vps:[], subject:null, object:null, adverbials:[], range:{start:rangeStart, end:rangeEnd}};
+  let vp = vpSpans[0], subject = null;
+  let relStart = -1;
+  for (let j = rangeStart; j < vp.start; j++) {
+    if (tokens[j].tag === 'WP' || tokens[j].tag === 'WDT') { relStart = j; break; }
+  }
+  if (relStart >= 0 && vpSpans.length > 1) vp = vpSpans[1];
+
+  let lead = rangeStart;
+  while (lead <= rangeEnd && /^(WRB|WP|WDT|WP\$|CC|UH)$/.test(tokens[lead].tag)) lead++;
+  const startIsAux = vp.start === lead && vp.end === vp.start && /^(MD|VBP|VBZ|VBD)$/.test(tokens[vp.start].tag);
+  const nextIdx = vp.start + 1;
+  const nextNPish = nextIdx <= rangeEnd && tokens[nextIdx] && /^(PRP|NN|NNS|NNP)$/.test(tokens[nextIdx].tag);
+  if (startIsAux && nextNPish) {
+    const later = vpSpans.find(v => v.start > nextIdx);
+    if (later) {
+      vp = {start:vp.start, end:later.end, type:'VP', label:'Kelompok Kata Kerja'};
+      subject = {start:nextIdx, end:later.start - 1};
+      while (subject.start <= subject.end && /^(RB|CC|UH)$/.test(tokens[subject.start].tag)) subject.start++;
+      while (subject.end >= subject.start && /^(RB|CC|UH)$/.test(tokens[subject.end].tag)) subject.end--;
+      if (subject.start > subject.end) subject = null;
+    }
+  }
+  if (!subject) {
+    const subjBoundary = relStart >= 0 ? relStart : vp.start;
+    const npSpans = spans.filter(s => s.type === 'NP' && s.end < subjBoundary && s.start >= rangeStart);
+    const validNPs = [];
+    for (const np of npSpans) {
+      const prev = np.start > 0 ? tokens[np.start - 1] : null;
+      if (prev && prev.tag === 'IN') continue;
+      validNPs.push(np);
+    }
+    if (validNPs.length) {
+      const lastNP = validNPs[validNPs.length - 1];
+      let startTok = lastNP.start;
+      let endTok = lastNP.end;
+      const nextTok = tokens[endTok + 1];
+      if (nextTok && nextTok.tag === 'IN' && nextTok.text.toLowerCase() === 'of'
+          && QUANTIFIER_HEADS.has(tokens[endTok].text.toLowerCase())) {
+        const afterOf = spans.find(s => s.type === 'NP' && s.start === endTok + 2);
+        if (afterOf) endTok = afterOf.end;
+      }
+      let idx = validNPs.length - 1;
+      while (idx >= 1) {
+        const prevNP = validNPs[idx - 1];
+        let hasCCBetween = false;
+        for (let k = prevNP.end + 1; k < startTok; k++) {
+          if (tokens[k].tag === 'CC') { hasCCBetween = true; break; }
+        }
+        if (hasCCBetween) { startTok = prevNP.start; idx--; }
+        else break;
+      }
+      subject = {start: startTok, end: endTok};
+    } else {
+      let s = rangeStart, e = vp.start - 1;
+      while (s <= e && /^(RB|CC|UH|IN|WRB|WP|WDT|WP\$|PUNCT)$/.test(tokens[s].tag)) s++;
+      while (e >= s && /^(RB|CC|UH|PUNCT)$/.test(tokens[e].tag)) e--;
+      subject = e >= s ? {start:s, end:e} : null;
+    }
+  }
+  const ppSpans = spans.filter(s => s.type === 'PP' && s.start >= rangeStart && s.end <= rangeEnd);
+  const inPP = sp => ppSpans.some(p => sp.start > p.start && sp.end <= p.end);
+  const object = spans.find(s => s.start > vp.end && s.end <= rangeEnd && s.type === 'NP' && !inPP(s)) || null;
+  const adverbials = spans.filter(s => s.start > vp.end && s.end <= rangeEnd && (s.type === 'PP' || s.type === 'AdvP'));
+  return {vps: vpSpans.map(v => v.start === vpSpans[0].start ? vp : v), vp, subject, object, adverbials, range:{start:rangeStart, end:rangeEnd}};
+}
+
+/* ============================================================
+   7. TENSE DETECTOR (frozen)
+   ============================================================ */
+function detectTense(tokens, vp) {
+  const verbs = [];
+  for (let i = vp.start; i <= vp.end; i++) if (/^(MD|VB|VBD|VBG|VBN|VBP|VBZ)$/.test(tokens[i].tag)) verbs.push(tokens[i]);
+  if (!verbs.length) return null;
+  const L = verbs.map(v => v.lemma), T = verbs.map(v => v.tag);
+  const N = verbs.length;
+
+  const lastVerb = verbs[verbs.length - 1];
+  if (L[0]==='be' && lastVerb.tag === 'VBG' && lastVerb.lemma === 'go') {
+    const afterTo = tokens[vp.end + 1];
+    const afterV  = tokens[vp.end + 2];
+    if (afterTo && afterTo.tag === 'TO' && afterV && /^(VB|VBP|VBZ)$/.test(afterV.tag)) {
+      return {name:'Be going to (Future)', formula:'be + going to + V1',
+              span:{start:vp.start, end:vp.end + 2}, glossId:'simple-future'};
+    }
+  }
+
+  if (L[0]==='have' && N>=3 && L[1]==='be' && T[2]==='VBG')
+    return T[0]==='VBD'
+      ? {name:'Past Perfect Continuous', formula:'had + been + V-ing', span:vp, glossId:'past-perfect-continuous'}
+      : {name:'Present Perfect Continuous', formula:'have/has + been + V-ing', span:vp, glossId:'present-perfect-continuous'};
+  if (L[0]==='have' && N>=3 && L[1]==='be' && T[2]==='VBN')
+    return T[0]==='VBD'
+      ? {name:'Past Perfect (Passive)', formula:'had + been + V3', span:vp, glossId:'passive-voice'}
+      : {name:'Present Perfect (Passive)', formula:'have/has + been + V3', span:vp, glossId:'passive-voice'};
+
+  if (L[0]==='have' && T[1]==='VBN')
+    return T[0]==='VBD'
+      ? {name:'Past Perfect', formula:'had + V3', span:vp, glossId:'past-perfect'}
+      : {name:'Present Perfect', formula:'have/has + V3', span:vp, glossId:'present-perfect'};
+  if (L[0]==='be' && T[1]==='VBG')
+    return T[0]==='VBD'
+      ? {name:'Past Continuous', formula:'was/were + V-ing', span:vp, glossId:'past-continuous'}
+      : {name:'Present Continuous', formula:'am/is/are + V-ing', span:vp, glossId:'present-continuous'};
+  if (L[0]==='be' && T[1]==='VBN')
+    return T[0]==='VBD'
+      ? {name:'Simple Past (Passive)', formula:'was/were + V3', span:vp, glossId:'passive-voice'}
+      : {name:'Simple Present (Passive)', formula:'am/is/are + V3', span:vp, glossId:'passive-voice'};
+  if (T[0]==='MD' && (L[0]==='will'||L[0]==='shall') && N>=4 && L[1]==='have' && L[2]==='be' && T[3]==='VBG')
+    return {name:'Future Perfect Continuous', formula:'will + have + been + V-ing', span:vp, glossId:'future-perfect-continuous'};
+  if (T[0]==='MD' && (L[0]==='will'||L[0]==='shall') && N>=3 && L[1]==='have' && T[2]==='VBN')
+    return {name:'Future Perfect', formula:'will + have + V3', span:vp, glossId:'future-perfect'};
+  if (T[0]==='MD' && (L[0]==='will'||L[0]==='shall') && N>=3 && L[1]==='be' && T[2]==='VBG')
+    return {name:'Future Continuous', formula:'will + be + V-ing', span:vp, glossId:'future-continuous'};
+  if (T[0]==='MD' && (L[0]==='will'||L[0]==='shall') && N>=3 && L[1]==='be' && T[2]==='VBN')
+    return {name:'Simple Future (Passive)', formula:'will + be + V3', span:vp, glossId:'passive-voice'};
+  if (T[0]==='MD' && (L[0]==='will'||L[0]==='shall') && N>=2 && T[1]==='VB')
+    return {name:'Simple Future', formula:'will + V1', span:vp, glossId:'simple-future'};
+  if (L[0]==='do' && T[0]==='VBD' && N>=2 && T[1]==='VB')
+    return {name:'Simple Past', formula:'did + V1 (untuk negatif/tanya)', span:vp, glossId:'negation'};
+  if (L[0]==='do' && T[0]!=='VBD' && N>=2 && T[1]==='VB')
+    return {name:'Simple Present', formula:'do/does + V1 (untuk negatif/tanya)', span:vp, glossId:'negation'};
+  if (T[0]==='MD' && N>=3 && L[1]==='have' && T[2]==='VBN')
+    return {name:'Modal Perfect', formula:'modal + have + V3', span:vp, glossId:'modal-construction'};
+  if (T[0]==='MD' && N>=2 && T[1]==='VB')
+    return {name:'Modal Construction', formula:'modal + V1', span:vp, glossId:'modal-construction'};
+  if (L[0]==='be')
+    return T[0]==='VBD'
+      ? {name:'Simple Past (copula)', formula:'was/were + pelengkap', span:vp, glossId:'copular-verb'}
+      : {name:'Simple Present (copula)', formula:'am/is/are + pelengkap', span:vp, glossId:'copular-verb'};
+  if (T[0]==='VBD') return {name:'Simple Past', formula:'S + V2', span:vp, glossId:'simple-past'};
+  if (T[0]==='VBP'||T[0]==='VBZ') return {name:'Simple Present', formula:'S + V1/V-s', span:vp, glossId:'simple-present'};
+  if (T[0]==='VB') return {name:'Simple Present', formula:'S + V1', span:vp, glossId:'simple-present'};
+  return null;
+}
+const detectGrammar = (tokens, spans) => spans.filter(s => s.type === 'VP').map(vp => detectTense(tokens, vp)).filter(Boolean);
+
+/* ============================================================
+   8. VALIDATOR
+   ============================================================ */
+const AN_CONSONANT = /^(uni|use|user|usu|eu|one|once|ewe|ufo|utopia)/i;
+const A_VOWEL = /^(hour|honest|honor|honour|heir|herb|x-)/i;
+
+const INVARIANT_PAST = new Set([
+  'let','put','cut','hit','set','cost','hurt','shut','spread','quit',
+  'read','burst','shed','split','sweat','thrust','rid','bet','knit','spit'
+]);
+
+function detectTransferPatterns(tokens) {
+  const issues = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i], n = tokens[i+1];
+    if (!n) continue;
+    if (t.lemma === 'to' && n.tag === 'VBG') {
+      const prevT = i > 0 ? tokens[i-1] : null;
+      const prev2T = i > 1 ? tokens[i-2] : null;
+      const prepPhrases = ['forward','used','object','accustomed','committed','opposed','dedicated'];
+      const isPrepTo = prevT && (
+        (prev2T && prepPhrases.includes(prev2T.text.toLowerCase())) ||
+        prepPhrases.includes(prevT.text.toLowerCase())
+      );
+      if (!isPrepTo) {
+        issues.push({level:'error', glossId:'transfer-to-ing',
+          msg:`Setelah "to" kata kerja harus dalam bentuk dasar (V1), bukan bentuk -ing. Ubah "${n.text}" menjadi bentuk dasar.`});
+      }
+    }
+    if ((t.lemma === 'more' || (t.tag === 'RB' && t.text.toLowerCase() === 'more')) && n.tag === 'JJR') {
+      issues.push({level:'error', glossId:'transfer-more-er',
+        msg:`"more" dan akhiran -er tidak dipakai bersamaan. Pilih salah satu: "more + kata sifat dasar" atau "kata sifat + -er".`});
+    }
+    if (t.lemma === 'be' && n.lemma === 'agree') {
+      issues.push({level:'error', glossId:'transfer-be-agree',
+        msg:`"agree" sudah kata kerja, tidak perlu didahului "be". Cukup gunakan "agree" (atau "agrees" untuk he/she/it).`});
+    }
+    if (t.lemma === 'discuss' && n.lemma === 'about') {
+      issues.push({level:'error', glossId:'transfer-discuss-about',
+        msg:`"discuss" langsung diikuti objeknya, tanpa "about". Contoh: "discuss the topic", bukan "discuss about the topic".`});
+    }
+    if (t.lemma === 'married' && n.lemma === 'with') {
+      issues.push({level:'error', glossId:'transfer-married-with',
+        msg:`"married" diikuti "to", bukan "with". Contoh: "married to him", bukan "married with him".`});
+    }
+    if (t.lemma === 'since' && n.tag === 'CD') {
+      const n2 = tokens[i+2];
+      const n3 = tokens[i+3];
+      const n2lem = n2 && n2.lemma ? n2.lemma.toLowerCase() : (n2 ? n2.text.toLowerCase().replace(/s$/,'') : '');
+      const followedByAgo = !!(n3 && n3.text.toLowerCase() === 'ago');
+      if (n2 && /^NN/.test(n2.tag) && DURATION_UNITS.has(n2lem) && !followedByAgo) {
+        issues.push({level:'error', glossId:'transfer-since-for',
+          msg:`"since" dipakai untuk titik waktu (mis. "since 2020", "since Monday"), bukan durasi. Untuk durasi gunakan "for" (mis. "for ${n.text} ${n2.text}").`});
+      }
+    }
+  }
+  return issues;
+}
+
+/* [W12-B] Helper: cek S-V agreement untuk satu finit verb dengan subjek tertentu. */
+function checkAgreementForVerb(tokens, subjSpan, vidx) {
+  if (!subjSpan) return null;
+  const finite = tokens[vidx];
+  if (!finite || !VERB_TAGS.has(finite.tag)) return null;
+  if (finite.tag === 'MD') return null;
+  const headIdx = findSubjectHead(tokens, subjSpan.start, subjSpan.end);
+  if (headIdx >= 0 && NUMBER_INVARIANT.has(tokens[headIdx].text.toLowerCase())) return null;
+  const num = getSubjectNumber(tokens, subjSpan);
+  if (num === 'skip') return null;
+  const ftag = finite.tag;
+  const ftext = finite.text.toLowerCase();
+  const flemma = (finite.lemma || '').toLowerCase();
+  const is3sg = num === '3sg';
+  const subjText = tokens.slice(subjSpan.start, vidx)
+    .filter(t => t.tag !== 'PUNCT' && t.tag !== 'CC')
+    .map(t => t.text).join(' ');
+  if (ftext === 'were') {
+    for (let k = subjSpan.start - 1; k >= Math.max(0, subjSpan.start - 3); k--) {
+      if (tokens[k].tag === 'IN' && tokens[k].text.toLowerCase() === 'if') return null;
+      if (!/^(RB|CC|UH|PUNCT)$/.test(tokens[k].tag)) break;
+    }
+  }
+  if (flemma === 'be') {
+    let ok;
+    if (num === '1sg') ok = (ftext === 'am' || ftext === 'was');
+    else if (num === '3sg') ok = (ftext === 'is' || ftext === 'was');
+    else ok = (ftext === 'are' || ftext === 'were');
+    if (!ok) return {level:'error', glossId:'subject-verb-agreement',
+      msg:`Pelaku "${subjText}" tidak cocok dengan kata kerja "${finite.text}". Sesuaikan bentuk "be" (am/is/are atau was/were).`};
+  } else if (flemma === 'have') {
+    if (is3sg && ftag === 'VBP') return {level:'error', glossId:'subject-verb-agreement',
+      msg:`Pelaku "${subjText}" tidak cocok dengan "${finite.text}". Untuk pelaku he/she/it, gunakan "has".`};
+    else if (!is3sg && ftag === 'VBZ') return {level:'error', glossId:'subject-verb-agreement',
+      msg:`Pelaku "${subjText}" tidak cocok dengan "${finite.text}". Untuk pelaku jamak (I/you/we/they), gunakan "have".`};
+  } else if (flemma === 'do') {
+    if (is3sg && ftag === 'VBP') return {level:'error', glossId:'subject-verb-agreement',
+      msg:`Pelaku "${subjText}" tidak cocok dengan "${finite.text}". Untuk pelaku he/she/it, gunakan "does".`};
+    else if (!is3sg && ftag === 'VBZ') return {level:'error', glossId:'subject-verb-agreement',
+      msg:`Pelaku "${subjText}" tidak cocok dengan "${finite.text}". Untuk pelaku jamak (I/you/we/they), gunakan "do".`};
+  } else if (ftag === 'VBZ') {
+    if (!is3sg) return {level:'error', glossId:'subject-verb-agreement',
+      msg:`Kata kerja "${finite.text}" tidak cocok dengan pelaku "${subjText}". Karena pelaku bukan "he", "she", atau "it", kata kerja ini tidak boleh pakai -s.`};
+  } else if (ftag === 'VBP' || ftag === 'VB') {
+    if (is3sg) return {level:'error', glossId:'subject-verb-agreement',
+      msg:`Kata kerja "${finite.text}" tidak cocok dengan pelaku "${subjText}". Karena pelakunya "he", "she", atau "it", kata kerja ini harus ditambah -s.`};
+  }
+  return null;
+}
+
+/* [W12-B] Helper: deteksi kalimat yang kehilangan kopula "be". */
+function detectMissingCopula(tokens) {
+  const hasFiniteVerb = tokens.some(t => /^(VB|VBD|VBG|VBN|VBP|VBZ|MD)$/.test(t.tag));
+  if (hasFiniteVerb) return null;
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (!/^(PRP|NNP|NN)$/.test(t.tag)) continue;
+    if (t.unknown || t.uncertain) continue;
+    let j = i + 1;
+    while (j < tokens.length && tokens[j].tag === 'RB') j++;
+    if (j < tokens.length && /^(JJ|JJR|JJS|NN)$/.test(tokens[j].tag)) {
+      if (tokens[j].unknown || tokens[j].uncertain) continue;
+      const subjText = tokens.slice(0, i+1).filter(x => x.tag !== 'PUNCT').map(x => x.text).join(' ');
+      const predText = tokens.slice(i+1).filter(x => x.tag !== 'PUNCT').map(x => x.text).join(' ');
+      return `${subjText} is ${predText}`;
+    }
+  }
+  return null;
+}
+
+function validate(tokens, structureOrList) {
+  const structures = Array.isArray(structureOrList) ? structureOrList : [structureOrList];
+  const issues = [];
+
+  for (const structure of structures) {
+    if (!structure || !structure.subject || !structure.vp) continue;
+    const subjTokens = tokens.slice(structure.subject.start, structure.subject.end + 1);
+    const hasCC = subjTokens.some(t => t.tag === 'CC');
+    let num = getSubjectNumber(tokens, structure.subject);
+    if (hasCC) num = 'other';
+    if (num === 'skip') continue;
+
+    const headIdx = findSubjectHead(tokens, structure.subject.start, structure.subject.end);
+    if (headIdx >= 0 && NUMBER_INVARIANT.has(tokens[headIdx].text.toLowerCase())) continue;
+
+    const vpTokens = tokens.slice(structure.vp.start, structure.vp.end + 1);
+    const hasModal = vpTokens.some(t => t.tag === 'MD');
+    if (hasModal) continue;
+
+    const finite = vpTokens.find(t => VERB_TAGS.has(t.tag));
+    if (!finite) continue;
+
+    const ftag = finite.tag;
+    const ftext = finite.text.toLowerCase();
+    const flemma = (finite.lemma || '').toLowerCase();
+    const is3sg = num === '3sg';
+
+    const subjText = tokens.slice(structure.subject.start, structure.vp.start)
+      .filter(t => t.tag !== 'PUNCT' && t.tag !== 'CC')
+      .map(t => t.text).join(' ');
+    let isSubjunctive = false;
+    if (ftext === 'were') {
+      const lo = Math.max(0, structure.subject.start - 3);
+      for (let k = structure.subject.start - 1; k >= lo; k--) {
+        if (tokens[k].tag === 'IN' && tokens[k].text.toLowerCase() === 'if') { isSubjunctive = true; break; }
+        if (!/^(RB|CC|UH|PUNCT)$/.test(tokens[k].tag)) break;
+      }
+      if (!isSubjunctive) {
+        for (let k = structure.subject.start; k <= structure.subject.end; k++) {
+          if (tokens[k].tag === 'IN' && tokens[k].text.toLowerCase() === 'if') { isSubjunctive = true; break; }
+        }
+      }
+    }
+    if (isSubjunctive) continue;
+
+    if (flemma === 'be') {
+      let ok;
+      if (num === '1sg') ok = (ftext === 'am' || ftext === 'was');
+      else if (num === '3sg') ok = (ftext === 'is' || ftext === 'was');
+      else ok = (ftext === 'are' || ftext === 'were');
+      if (!ok) issues.push({level:'error', glossId:'subject-verb-agreement', msg:`Pelaku "${subjText}" tidak cocok dengan kata kerja "${finite.text}". Sesuaikan bentuk "be" (am/is/are atau was/were).`});
+    } else if (flemma === 'have') {
+      if (is3sg && ftag === 'VBP') issues.push({level:'error', glossId:'subject-verb-agreement', msg:`Pelaku "${subjText}" tidak cocok dengan "${finite.text}". Untuk pelaku he/she/it, gunakan "has".`});
+      else if (!is3sg && ftag === 'VBZ') issues.push({level:'error', glossId:'subject-verb-agreement', msg:`Pelaku "${subjText}" tidak cocok dengan "${finite.text}". Untuk pelaku jamak (I/you/we/they), gunakan "have".`});
+    } else if (flemma === 'do') {
+      if (is3sg && ftag === 'VBP') issues.push({level:'error', glossId:'subject-verb-agreement', msg:`Pelaku "${subjText}" tidak cocok dengan "${finite.text}". Untuk pelaku he/she/it, gunakan "does".`});
+      else if (!is3sg && ftag === 'VBZ') issues.push({level:'error', glossId:'subject-verb-agreement', msg:`Pelaku "${subjText}" tidak cocok dengan "${finite.text}". Untuk pelaku jamak (I/you/we/they), gunakan "do".`});
+    } else if (ftag === 'VBZ') {
+      if (!is3sg) issues.push({level:'error', glossId:'subject-verb-agreement', msg:`Kata kerja "${finite.text}" tidak cocok dengan pelaku "${subjText}". Karena pelaku bukan "he", "she", atau "it", kata kerja ini tidak boleh pakai -s.`});
+    } else if (ftag === 'VBP' || ftag === 'VB') {
+      if (is3sg) issues.push({level:'error', glossId:'subject-verb-agreement', msg:`Kata kerja "${finite.text}" tidak cocok dengan pelaku "${subjText}". Karena pelakunya "he", "she", atau "it", kata kerja ini harus ditambah -s.`});
+    }
+  }
+
+  /* [W12-B] Pass kedua: finit verb ke-2+ per klausa.
+     [W12-C] Perbaikan:
+     (a) skip finit yang didahului TO/MD/aux.
+     (b) batasi pencarian subjek pada relativizer terakhir. */
+  for (const structure of structures) {
+    if (!structure) continue;
+    const range = structure.range || {start: 0, end: tokens.length - 1};
+    const finites = [];
+    for (let i = range.start; i <= range.end; i++) {
+      const t = tokens[i];
+      if (!VERB_TAGS.has(t.tag) || t.tag === 'MD' || t.aux) continue;
+      let pk = i - 1;
+      while (pk >= range.start && /^(RB|PUNCT)$/.test(tokens[pk].tag)) pk--;
+      const prevNT = pk >= 0 ? tokens[pk] : null;
+      if (prevNT && (prevNT.tag === 'TO' || prevNT.tag === 'MD' || prevNT.aux)) continue;
+      finites.push(i);
+    }
+    for (let k = 1; k < finites.length; k++) {
+      const vidx = finites[k];
+      let subjSearchEnd = vidx - 1;
+      for (let j = vidx - 1; j >= range.start; j--) {
+        if (tokens[j].tag === 'WP' || tokens[j].tag === 'WDT') {
+          subjSearchEnd = j - 1;
+          break;
+        }
+      }
+      let subjStart = -1, subjEnd = -1;
+      for (let j = subjSearchEnd; j >= range.start; j--) {
+        const t = tokens[j];
+        if (t.tag === 'PRP' || /^(NN|NNP)$/.test(t.tag)) {
+          let s = j;
+          while (s > range.start && /^(DT|PRP\$|JJ|JJR|JJS|CD)$/.test(tokens[s-1].tag)) s--;
+          subjStart = s; subjEnd = j;
+          break;
+        }
+      }
+      if (subjStart < 0) continue;
+      const issue = checkAgreementForVerb(tokens, {start: subjStart, end: subjEnd}, vidx);
+      if (issue) issues.push(issue);
+    }
+  }
+
+  tokens.forEach((t, i) => {
+    if (t.tag === 'MD') {
+      const vIdx = findVerbAfterAux(tokens, i);
+      if (vIdx > 0) {
+        const v = tokens[vIdx];
+        if (VERB_TAGS.has(v.tag) && v.tag !== 'VB' && v.tag !== 'VBP')
+          issues.push({level:'error', glossId:'modal-verb', msg:`Setelah kata bantu "${t.text}" kata kerja harus dalam bentuk dasar (tanpa -s/-ed/-ing). Ubah "${v.text}" menjadi bentuk dasar.`});
+      }
+    } else if (t.lemma === 'do' && t.aux) {
+      const vIdx = findVerbAfterAux(tokens, i);
+      if (vIdx > 0) {
+        const v = tokens[vIdx];
+        if (VERB_TAGS.has(v.tag) && v.tag !== 'VB')
+          issues.push({level:'error', glossId:'auxiliary-verb', msg:`Setelah kata bantu "${t.text}" kata kerja harus dalam bentuk dasar (tanpa -s/-ed/-ing). Ubah "${v.text}" menjadi bentuk dasar.`});
+      }
+    } else if (t.lemma === 'have' && t.aux) {
+      const vIdx = findVerbAfterAux(tokens, i);
+      if (vIdx > 0) {
+        const v = tokens[vIdx];
+        if (VERB_TAGS.has(v.tag) && v.tag !== 'VBN' && v.tag !== 'VBG') {
+          const isInvariantPast = v.tag === 'VB' && INVARIANT_PAST.has(v.text.toLowerCase());
+          if (!isInvariantPast) issues.push({level:'error', glossId:'v3', msg:`Setelah have/has/had kata kerja harus dalam bentuk V3. Ubah "${v.text}" menjadi bentuk V3.`});
+        }
+      }
+    } else if (t.lemma === 'be' && t.aux) {
+      const vIdx = findVerbAfterAux(tokens, i);
+      if (vIdx > 0) {
+        const v = tokens[vIdx];
+        const adjLike = v.tag === 'VBD' && v.amb?.includes('JJ');
+        const isTransferAgree = v.lemma === 'agree';
+        if (VERB_TAGS.has(v.tag) && v.tag !== 'VBG' && v.tag !== 'VBN' && !adjLike && !isTransferAgree)
+          issues.push({level:'error', glossId:'auxiliary-verb', msg:`Setelah be (am/is/are/was/were) kata kerja harus berbentuk V-ing (untuk aksi sedang berlangsung) atau V3 (untuk kalimat pasif). Ubah "${v.text}".`});
+      }
+    }
+    if (t.tag === 'NNS' && t.lemma && UNCOUNTABLE.has(t.lemma.toLowerCase()) && /s$/i.test(t.text)) {
+      issues.push({level:'error', glossId:'noun', msg:`Kata "${t.text}" tidak lazim dijamak. Kata dasar "${t.lemma}" adalah uncountable, jadi tidak pakai -s.`});
+    }
+    if (t.tag === 'DT' && (t.text.toLowerCase() === 'a' || t.text.toLowerCase() === 'an')) {
+      const next = tokens[i+1];
+      if (next && /^[A-Za-z]/.test(next.text)) {
+        let vowel;
+        if (A_VOWEL.test(next.text)) vowel = true;
+        else if (AN_CONSONANT.test(next.text)) vowel = false;
+        else vowel = /^[aeiou]/i.test(next.text);
+        if (t.text.toLowerCase() === 'a' && vowel) issues.push({level:'warn', glossId:'determiner', msg:`Gunakan "an" sebelum "${next.text}" karena kata itu dimulai dengan bunyi vokal.`});
+        if (t.text.toLowerCase() === 'an' && !vowel) issues.push({level:'warn', glossId:'determiner', msg:`Gunakan "a" sebelum "${next.text}" karena kata itu tidak dimulai dengan bunyi vokal.`});
+      }
+    }
+    if (t.tag === 'NN' && !t.unknown && !t.uncertain
+        && ARTICLE_REQUIRED_NN.has(t.text.toLowerCase())) {
+      const prev = i > 0 ? tokens[i-1] : null;
+      let fire = false;
+      if (!prev) { fire = true; }
+      else if (prev.tag === 'DT' || prev.tag === 'PRP$' || prev.tag === 'CD' || prev.tag === 'IN') { /* skip */ }
+      else if (prev.tag === 'JJ' || prev.tag === 'JJR' || prev.tag === 'JJS') {
+        const prev2 = i > 1 ? tokens[i-2] : null;
+        if (!(prev2 && (prev2.tag === 'DT' || prev2.tag === 'PRP$' || prev2.tag === 'CD'))) fire = true;
+      }
+      else if (/^(VB|VBD|VBG|VBN|VBP|VBZ|MD)$/.test(prev.tag)) { fire = true; }
+      if (fire) {
+        issues.push({level:'warn', glossId:'missing-article',
+          msg:`Kata benda tunggal "${t.text}" biasanya butuh kata penunjuk seperti "a", "an", atau "the" di depannya.`});
+      }
+    }
+  });
+
+  const transferIssues = detectTransferPatterns(tokens);
+  for (const ti of transferIssues) issues.push(ti);
+
+  if (!issues.length) {
+    const meaningful = tokens.filter(t => t.tag !== 'PUNCT');
+    const unknownCount = meaningful.filter(t => t.uncertain || t.unknown).length;
+    const total = meaningful.length || 1;
+    const unknownRatio = unknownCount / total;
+    const hasVerb = tokens.some(t => /^(VB|VBD|VBG|VBN|VBP|VBZ|MD)$/.test(t.tag));
+    const hasSubject = structures.some(s => s && s.subject !== null);
+
+    if (!hasVerb || !hasSubject || unknownRatio > 0.4) {
+      const copulaHint = !hasVerb ? detectMissingCopula(tokens) : null;
+      issues.push({
+        level: 'info', verdict: 'abstain',
+        msg: copulaHint
+          ? `Kalimat ini tampaknya tidak punya kata kerja. Dalam bahasa Inggris, kalimat dengan predikat kata sifat atau kata benda butuh "be" (am/is/are/was/were). Coba tambahkan "is/are/am" sebelum predikat. Contoh: "${copulaHint}".`
+          : 'Kalimat tidak dapat dianalisis dengan yakin. Aplikasi hanya mengenali sebagian kata, atau struktur kalimatnya terlalu kompleks untuk kamus sederhana ini. Coba gunakan kalimat yang lebih sederhana dengan kata-kata umum.'
+      });
+    } else if (unknownRatio > 0.15) {
+      issues.push({
+        level: 'info', verdict: 'hedged',
+        msg: `Tidak ada kesalahan yang terdeteksi pada cakupan yang dikenali. Namun sekitar ${Math.round(unknownRatio*100)}% kata ditebak dari bentuk/konteks (di luar kamus), jadi hasil mungkin belum lengkap.`
+      });
+    } else {
+      issues.push({
+        level: 'info', verdict: 'clean',
+        msg: 'Bagus! Tidak ada kesalahan grammar yang terdeteksi pada pemeriksaan dasar. (Cakupan: kalimat sederhana dengan kata umum.)'
+      });
+    }
+  }
+  return issues;
+}
+
+/* ============================================================
+   9. LABEL + EXPLANATION
+   ============================================================ */
+const TAG_LABEL = {
+  NN:'Kata benda tunggal', NNS:'Kata benda jamak', NNP:'Nama diri (orang/tempat)',
+  PRP:'Kata ganti orang', PRP$:'Kata ganti kepemilikan',
+  VB:'Kata kerja dasar', VBD:'Kata kerja bentuk lampau (V2)', VBG:'Kata kerja -ing (V-ing)',
+  VBN:'Kata kerja bentuk ketiga (V3)', VBP:'Kata kerja dasar (untuk I/you/we/they)',
+  VBZ:'Kata kerja untuk he/she/it (V-s)',
+  MD:'Kata bantu modal', JJ:'Kata sifat', JJR:'Kata sifat pembanding',
+  JJS:'Kata sifat paling (superlatif)', RB:'Kata keterangan', DT:'Kata penunjuk',
+  IN:'Kata depan atau penghubung', CC:'Kata sambung setara',
+  TO:'Penanda kata kerja dasar (to)', CD:'Kata bilangan', UH:'Kata seru',
+  WP:'Kata tanya (who, what)', WP$:'Kata tanya kepemilikan (whose)', WDT:'Kata tanya penunjuk (which)',
+  WRB:'Kata tanya keterangan (when, where)', PUNCT:'Tanda baca'
+};
+
+function wordFunction(idx, tokens, spans, structure) {
+  const span = spans.find(s => idx >= s.start && idx <= s.end);
+  let phraseRole = null, phraseGloss = null;
+  if (span && span.type === 'VP' && structure.vp && idx >= structure.vp.start && idx <= structure.vp.end) {
+    phraseRole = 'Predikat (kelompok kata kerja)'; phraseGloss = 'predicate';
+  } else if (span && span.type === 'NP') {
+    if (structure.subject && span.start === structure.subject.start && span.end === structure.subject.end) { phraseRole = 'Pelaku (Subject)'; phraseGloss = 'subject'; }
+    else if (structure.object && span.start === structure.object.start) { phraseRole = 'Objek langsung'; phraseGloss = 'direct-object'; }
+    else { phraseRole = 'Kelompok kata benda'; phraseGloss = 'noun-phrase'; }
+  }
+  else if (span?.type === 'PP') { phraseRole = 'Keterangan / kelompok kata depan'; phraseGloss = 'prepositional-phrase'; }
+  else if (span?.type === 'InfP') { phraseRole = 'Kelompok to + kata kerja'; phraseGloss = 'infinitive-phrase'; }
+  else if (span?.type === 'GerP') { phraseRole = 'Kelompok kata kerja -ing'; phraseGloss = 'gerund-phrase'; }
+  else if (span?.type === 'AdvP') { phraseRole = 'Keterangan'; phraseGloss = 'adverb-phrase'; }
+  else if (span?.type === 'AdjP') { phraseRole = 'Kelompok kata sifat'; phraseGloss = 'adjective-phrase'; }
+
+  const tense = (structure.grammar || []).find(g => idx >= g.span.start && idx <= g.span.end);
+  return {phraseRole, phraseGloss, span, tense};
+}
+
+function explainWord(idx, tokens, spans, structure) {
+  const t = tokens[idx];
+  const info = {text:t.raw, tag:t.tag, lemma:t.lemma, form:t.form};
+  let reason;
+  if (t.isCont) reason = `Kata ini bagian dari singkatan "${t.raw}". Aplikasi memisahkannya agar mudah dianalisis.`;
+  else if (t.amb?.length) reason = `Kata ini bisa punya lebih dari satu arti (${t.amb.join(', ')}). Dari posisinya dalam kalimat, aplikasi memilih "${t.tag}".`;
+  else if (t.unknown) reason = `Kata ini tidak ada di kamus. Aplikasi menebak jenis katanya dari bentuk dan posisinya.`;
+  else reason = `Aplikasi mengenali kata ini sebagai "${t.tag}" dari kamus, bentuk katanya, atau posisinya dalam kalimat.`;
+  let form = t.form;
+  if (!form && /^VB/.test(t.tag)) {
+    form = {VBD:'V2', VBN:'V3', VBG:'V-ing', VBZ:'V1 + s', VBP:'V1'}[t.tag];
+  }
+  return Object.assign(info, {label:TAG_LABEL[t.tag] || t.tag, form, aux:t.aux, reason, ambiguous:t.amb || []});
+}
+
+/* ============================================================
+   10. COLOR MAPS
+   ============================================================ */
+const POS_COLORS = {
+  NN:'#e8d9ff',NNS:'#e8d9ff',NNP:'#dcd0ff',PRP:'#d6ecff',PRP$:'#cfe2ff',
+  VB:'#d4f5d4',VBD:'#ffe0e0',VBG:'#d0f0f5',VBN:'#c4e4c4',VBP:'#d4f5d4',VBZ:'#aee6ae',
+  MD:'#fff2b8',JJ:'#ffe0e0',JJR:'#ffd0d0',JJS:'#ffc0c0',RB:'#ffe8cc',DT:'#f0f0f0',
+  IN:'#ffd9a8',CC:'#f5e6b8',TO:'#ffd9a8',CD:'#e0e0e0',UH:'#ffcccc',
+  WP:'#d6ecff',WDT:'#d6ecff',WRB:'#ffe8cc',WP$:'#cfe2ff'
+};
+const PHRASE_COLORS = {NP:'#e8d9ff',VP:'#d4f5d4',PP:'#ffd9a8',AdjP:'#ffe0e0',AdvP:'#ffe8cc',InfP:'#fff2b8',GerP:'#d0f0f5',PartP:'#d0f0f5'};
+const TENSE_COLORS = {
+  'Simple Present':'#d4f5d4','Simple Past':'#ffe0e0','Simple Future':'#d0f0f5',
+  'Present Continuous':'#d6ecff','Past Continuous':'#c0dcf0','Future Continuous':'#b8d4e8',
+  'Present Perfect':'#d0f0f5','Past Perfect':'#c0e0e5','Future Perfect':'#b0d0d5',
+  'Present Perfect Continuous':'#e0f8f8','Past Perfect Continuous':'#d0e8e8',
+  'Future Perfect Continuous':'#c0d8d8','Modal Construction':'#fff2b8',
+  'Simple Present (Passive)':'#ffd0e0','Simple Past (Passive)':'#ffd0e0',
+  'Simple Present (copula)':'#d4f5d4','Simple Past (copula)':'#ffe0e0',
+  'Modal Perfect':'#fff2b8',
+  'Be going to (Future)':'#d0f0f5',
+  'Present Perfect (Passive)':'#ffd0e0','Past Perfect (Passive)':'#ffd0e0',
+  'Simple Future (Passive)':'#ffd0e0'
+};
+
+/* ============================================================
+   11. UTIL + STATE
+   ============================================================ */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+const $ = id => document.getElementById(id);
+const STATE = {tokens:[], spans:[], structure:{}, grammar:[], issues:[], mode:'pos', selected:null};
+const EXPAND_STATE = new Map();
+
+function colorForToken(idx, mode) {
+  const {tokens, spans, grammar} = STATE;
+  if (mode === 'pos') return POS_COLORS[tokens[idx].tag] || null;
+  if (mode === 'phrase') { const s = spans.find(sp => idx >= sp.start && idx <= sp.end); return s ? PHRASE_COLORS[s.type] : null; }
+  if (mode === 'grammar') { const g = grammar.find(g => idx >= g.span.start && idx <= g.span.end); return g ? (TENSE_COLORS[g.name] || '#e0e0e0') : null; }
+  return null;
+}
+
+/* ============================================================
+   12. RENDER FUNCTIONS
+   ============================================================ */
+function renderSentence() {
+  const {tokens, mode} = STATE;
+  $('output').innerHTML = tokens.map((t, i) => {
+    const bg = colorForToken(i, mode);
+    const style = bg ? `style="background:${bg}"` : '';
+    const cls = ['tok'];
+    if (t.contEnd && !t.contStart) cls.push('cont-mid');
+    if (!t.contEnd && t.contStart) cls.push('cont-mid');
+    if (STATE.selected === i) cls.push('selected');
+    return `<span class="${cls.join(' ')}" data-idx="${i}" ${style} title="${esc((TAG_LABEL[t.tag]||t.tag) + (t.lemma ? ' · '+t.lemma : ''))}">${esc(t.text)}</span>`;
+  }).join(' ');
+}
+
+function renderLegend() {
+  const mode = STATE.mode;
+  let entries = [];
+  if (mode === 'pos') entries = [...new Set(STATE.tokens.filter(t => t.tag !== 'PUNCT').map(t => t.tag))].map(tag => ({label:TAG_LABEL[tag]||tag, color:POS_COLORS[tag]||'#eee'}));
+  else if (mode === 'phrase') entries = [...new Set(STATE.spans.map(s => s.type))].map(type => ({label:type, color:PHRASE_COLORS[type]||'#eee'}));
+  else { const m = new Map(); STATE.grammar.forEach(g => m.set(g.name, TENSE_COLORS[g.name]||'#eee')); entries = [...m].map(([label, color]) => ({label, color})); }
+  $('legend').innerHTML = entries.map(e => `<span class="legend-item"><span class="swatch" style="background:${e.color}"></span>${esc(e.label)}</span>`).join('');
+}
+
+function renderExpandable(containerId, items, renderItem, initial = 3, emptyHtml = '') {
+  const el = $(containerId);
+  if (!el) return;
+  if (!items.length) { el.innerHTML = emptyHtml || '<div class="muted">—</div>'; return; }
+  const expanded = EXPAND_STATE.get(containerId) === true;
+  const shown = expanded ? items : items.slice(0, initial);
+  const hidden = items.length - Math.min(initial, items.length);
+  let html = shown.map(renderItem).join('');
+  if (hidden > 0) html += `<div><button class="view-more-btn" data-expand="${containerId}" aria-expanded="${expanded}">${expanded ? 'Show less' : `Show more (${hidden} lagi)`}</button></div>`;
+  el.innerHTML = html;
+}
+
+const glossLink = (id, text) => id ? `<button type="button" class="gloss-link" data-gloss="${esc(id)}">${esc(text)}</button>` : esc(text);
+
+function renderSummary() {
+  const s = STATE.structure, tokens = STATE.tokens;
+  const txt = span => span ? tokens.slice(span.start, span.end + 1).map(t => t.text).join(' ') : '—';
+  const rows = [['Pelaku (Subject)', txt(s.subject), s.subject ? 'subject' : null]];
+  if (s.vp) {
+    rows.push(['Predikat', txt(s.vp), 'predicate']);
+    const vpTokens = tokens.slice(s.vp.start, s.vp.end + 1).filter(t => /^VB/.test(t.tag));
+    const main = vpTokens[vpTokens.length - 1];
+    rows.push(['Kata kerja inti', main ? `${main.text} (${main.lemma || main.text})` : '—', 'main-verb']);
+    const auxes = vpTokens.slice(0, -1).map(t => t.text).join(' ');
+    if (auxes) rows.push(['Kata bantu', auxes, 'auxiliary-verb']);
+  }
+  rows.push(['Objek / Pelengkap', txt(s.object), s.object ? 'direct-object' : null]);
+  if (s.adverbials?.length) rows.push(['Keterangan', s.adverbials.map(txt).join(' · '), 'adverbial']);
+  if (STATE.grammar.length) rows.push(['Waktu (Tense)', STATE.grammar.map(g => g.name).join(' / '), STATE.grammar.length === 1 ? STATE.grammar[0].glossId : null]);
+  const isQ = tokens.some(t => t.text === '?');
+  const isImp = !s.subject && s.vp && s.vp.start === 0;
+  rows.push(['Jenis kalimat', isQ ? 'Kalimat tanya' : isImp ? 'Kalimat perintah' : 'Kalimat pernyataan', isQ ? 'interrogative' : null]);
+  $('summary').innerHTML = `<h3>Ringkasan Struktur</h3><dl class="kv">${rows.map(([k,v,gid]) => `<dt>${gid ? glossLink(gid, k) : esc(k)}</dt><dd>${esc(v||'—')}</dd>`).join('')}</dl>`;
+}
+
+function renderDetail() {
+  const el = $('detail');
+  if (STATE.selected == null) { el.innerHTML = `<h3>Detail Kata</h3><div class="muted">Klik sebuah kata atau frasa di kalimat di atas.</div>`; return; }
+  const idx = STATE.selected;
+  const info = explainWord(idx, STATE.tokens, STATE.spans, STATE.structure);
+  const wf = wordFunction(idx, STATE.tokens, STATE.spans, STATE.structure);
+  const tagGloss = TAG_TO_GLOSSARY[info.tag];
+  const tenseGloss = wf.tense ? wf.tense.glossId : null;
+  let html = `<h3>Detail Kata</h3><dl class="kv">`;
+  html += `<dt>Kata</dt><dd><strong>${esc(info.text)}</strong></dd>`;
+  html += `<dt>Jenis kata</dt><dd>${tagGloss ? glossLink(tagGloss, info.label) : esc(info.label)}</dd>`;
+  if (info.lemma) html += `<dt>Bentuk dasar</dt><dd>${esc(info.lemma)}</dd>`;
+  if (info.form) html += `<dt>Bentuk kata kerja</dt><dd>${glossLink(FORM_TO_GLOSSARY[info.form], info.form)}</dd>`;
+  if (info.aux) html += `<dt>Peran</dt><dd>${glossLink('auxiliary-verb', 'Kata bantu')}</dd>`;
+  if (wf.phraseRole) html += `<dt>Fungsi dalam kalimat</dt><dd>${glossLink(wf.phraseGloss, wf.phraseRole)}</dd>`;
+  if (wf.tense) html += `<dt>Waktu (Tense)</dt><dd>${glossLink(tenseGloss, wf.tense.name)} — <code>${esc(wf.tense.formula)}</code></dd>`;
+  html += `</dl><p class="expl">${esc(info.reason)}</p>`;
+  if (wf.span) {
+    const pg = PHRASE_TO_GLOSSARY[wf.span.type];
+    html += `<p class="expl"><strong>Kelompok kata:</strong> ${pg ? glossLink(pg, wf.span.label) : esc(wf.span.label)} (kata ${wf.span.start+1}–${wf.span.end+1})</p>`;
+  }
+  if (info.ambiguous?.length) html += `<p class="expl"><strong>Bisa juga:</strong> dalam konteks lain, kata ini bisa jadi ${info.ambiguous.join(' atau ')}.</p>`;
+  el.innerHTML = html;
+}
+
+function renderValidation() {
+  if (!STATE.issues.length) { $('validation').innerHTML = `<h3>Pemeriksaan Grammar</h3><div class="muted">—</div>`; return; }
+  renderExpandable('validation', STATE.issues, i => {
+    const btn = i.glossId ? ` <button type="button" class="gloss-link" data-gloss="${esc(i.glossId)}" style="font-size:11.5px">Pelajari aturannya</button>` : '';
+    return `<div class="issue ${i.level}">${esc(i.msg)}${btn}</div>`;
+  });
+  $('validation').innerHTML = `<h3>Pemeriksaan Grammar</h3>` + $('validation').innerHTML;
+}
+
+function renderPatterns() {
+  if (!STATE.grammar.length) { $('patterns').innerHTML = `<h3>Pola Grammar yang Terdeteksi</h3><div class="muted">Belum ada pola yang bisa dikenali dengan pasti.</div>`; return; }
+  renderExpandable('patterns', STATE.grammar, g => {
+    const span = STATE.tokens.slice(g.span.start, g.span.end + 1).map(t => t.text).join(' ');
+    const title = g.glossId ? `<button type="button" class="gloss-link" data-gloss="${esc(g.glossId)}" style="font-weight:600;font-size:14px">${esc(g.name)}</button>` : `<strong>${esc(g.name)}</strong>`;
+    return `<div class="issue info">${title} — <code>${esc(g.formula)}</code><br><span class="muted">Kata yang mengisi: ${esc(span)}</span></div>`;
+  });
+  $('patterns').innerHTML = `<h3>Pola Grammar yang Terdeteksi</h3>` + $('patterns').innerHTML;
+}
+
+function render() {
+  renderSentence();
+  renderLegend();
+  renderSummary();
+  renderDetail();
+  renderValidation();
+  renderPatterns();
+}
+
+/* ============================================================
+   13. TEXTAREA AUTO-GROW
+   ============================================================ */
+function autoGrowInput() {
+  const el = $('input');
+  if (!el) return;
+  const prev = {h: el.style.height, o: el.style.overflowY, t: el.style.transition};
+  el.style.transition = 'none';
+  el.style.height = 'auto';
+  el.style.overflowY = 'hidden';
+  void el.offsetHeight;
+  const natural = el.scrollHeight;
+  el.style.transition = prev.t;
+  el.style.height = prev.h;
+  el.style.overflowY = prev.o;
+  const target = Math.max(48, Math.min(natural, 420));
+  el.style.height = target + 'px';
+  el.style.overflowY = natural > 420 ? 'auto' : 'hidden';
+}
+
+/* ============================================================
+   14. OVERLAY HELPER
+   ============================================================ */
+function openOverlay(el) {
+  if (!el) return;
+  el.hidden = false;
+  void el.offsetWidth;
+  el.setAttribute('data-open', 'true');
+}
+function closeOverlay(el) {
+  if (!el) return;
+  el.setAttribute('data-open', 'false');
+  setTimeout(() => { if (el.getAttribute('data-open') === 'false') el.hidden = true; }, 180);
+}
+
+/* ============================================================
+   15. TEXT VIEW
+   ============================================================ */
+function openTextView() {
+  const inp = $('input'), overlay = $('textview-overlay'), content = $('textview-content');
+  content.textContent = inp.value || '';
+  openOverlay(overlay);
+  overlay.scrollTop = 0;
+}
+function closeTextView() { closeOverlay($('textview-overlay')); }
+function initTextViewEvents() {
+  $('fullview').addEventListener('click', openTextView);
+  $('textview-close').addEventListener('click', closeTextView);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && $('textview-overlay').getAttribute('data-open') === 'true') closeTextView();
+  });
+}
+
+/* ============================================================
+   16. ANALYZE
+   ============================================================ */
+let _analyzing = false;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const nextPaint = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+const idleYield = timeout => new Promise(r => {
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(() => r(), {timeout});
+  else setTimeout(r, 0);
+});
+function isLowEndDevice() {
+  try {
+    const conn = navigator.connection || {};
+    if (conn.saveData === true) return true;
+    const cores = navigator.hardwareConcurrency;
+    const mem = navigator.deviceMemory;
+    if (cores === undefined && mem === undefined) return false;
+    const lowCores = cores !== undefined && cores <= 4;
+    const lowMem = mem !== undefined && mem <= 4;
+    return lowCores || lowMem;
+  } catch { return false; }
+}
+
+async function analyze(opts = {}) {
+  const silent = opts.silent === true;
+  if (_analyzing) return;
+  _analyzing = true;
+
+  const goBtn = $('go'), pageHome = $('page-home'), loadingEl = $('loading'), statusEl = $('status');
+  if (goBtn) goBtn.disabled = true;
+  if (!silent) {
+    if (statusEl) statusEl.hidden = true;
+    if (loadingEl) loadingEl.hidden = false;
+    if (pageHome) pageHome.classList.add('analyzing');
+  }
+
+  const startedAt = performance.now();
+  const MIN_LOADING_MS = 550;
+
+  try {
+    await nextPaint();
+    if (isLowEndDevice()) { await idleYield(300); await sleep(180); }
+    else { await idleYield(120); }
+
+    const text = $('input').value;
+
+    const tokens = tokenize(text);
+    await nextPaint();
+    tagAll(tokens);
+    await nextPaint();
+    const spans = chunk(tokens);
+    const grammar = detectGrammar(tokens, spans);
+    const clauses = splitClauses(tokens);
+    const structures = clauses.map(c => {
+      const s = analyzeStructure(tokens, spans, c.start, c.end);
+      s.grammar = grammar.filter(g => g.span.start >= c.start && g.span.end <= c.end);
+      return s;
+    });
+    await nextPaint();
+    const issues = validate(tokens, structures);
+    let mainClauseIdx = clauses.findIndex(c => {
+      const ft = tokens[c.start];
+      return ft && !(ft.tag === 'IN' && CLAUSE_SUBORDINATORS.has(ft.text.toLowerCase()));
+    });
+    if (mainClauseIdx < 0) mainClauseIdx = 0;
+    const structure = structures[mainClauseIdx] || {vps:[], subject:null, object:null, adverbials:[]};
+    structure.grammar = grammar;
+
+    STATE.tokens = tokens;
+    STATE.spans = spans;
+    STATE.structure = structure;
+    STATE.grammar = grammar;
+    STATE.issues = issues;
+    STATE.selected = null;
+
+    if (!silent) {
+      const elapsed = performance.now() - startedAt;
+      if (elapsed < MIN_LOADING_MS) await sleep(MIN_LOADING_MS - elapsed);
+    }
+    render();
+  } catch (e) {
+    console.error(e);
+    if (statusEl) { statusEl.textContent = 'Terjadi kesalahan saat menganalisis kalimat. Coba lagi.'; statusEl.hidden = false; }
+  } finally {
+    if (pageHome) pageHome.classList.remove('analyzing');
+    if (loadingEl) loadingEl.hidden = true;
+    _analyzing = false;
+    if (goBtn) goBtn.disabled = false;
+  }
+}
+
+/* ============================================================
+   17. MAPPING DICTIONARIES
+   ============================================================ */
+const TAG_TO_GLOSSARY = {
+  NN:'noun', NNS:'noun', NNP:'noun',
+  PRP:'pronoun', 'PRP$':'pronoun', WP:'pronoun', 'WP$':'pronoun', WDT:'pronoun', WRB:'adverb',
+  VB:'verb', VBD:'verb', VBG:'verb', VBN:'verb', VBP:'verb', VBZ:'verb',
+  MD:'modal-verb', JJ:'adjective', JJR:'adjective', JJS:'adjective',
+  RB:'adverb', DT:'determiner', IN:'preposition', CC:'conjunction',
+  TO:'infinitive-marker', CD:'numeral', UH:'interjection', PUNCT:'punctuation'
+};
+const PHRASE_TO_GLOSSARY = {
+  NP:'noun-phrase', VP:'verb-phrase', PP:'prepositional-phrase',
+  AdjP:'adjective-phrase', AdvP:'adverb-phrase',
+  InfP:'infinitive-phrase', GerP:'gerund-phrase', PartP:'participial-phrase'
+};
+const FORM_TO_GLOSSARY = {'V1':'v1','V2':'v2','V3':'v3','V-ing':'v-ing','V-s':'v-s'};
+
+/* ============================================================
+   18. GRAMMAR GLOSSARY — 67 entri
+   ============================================================ */
+const GLOSSARY_CATEGORIES = [
+  {id:'pos', name:'Jenis Kata'},
+  {id:'phrase', name:'Kelompok Kata'},
+  {id:'sentence', name:'Bagian Kalimat'},
+  {id:'tense', name:'Waktu & Konstruksi'},
+  {id:'verbform', name:'Bentuk Kata Kerja'},
+  {id:'transfer', name:'Pola Transfer (L1)'}
+];
+
+const GRAMMAR_GLOSSARY = {
+  'noun': {id:'noun', name:'Noun (Kata Benda)', abbr:'NN / NNS / NNP', category:'pos',
+    definition:'Kata yang menyebut orang, tempat, benda, atau hal yang bisa dibicarakan.',
+    simple:'Kata benda = nama orang, tempat, atau barang. Contoh: book, Jakarta, teacher.',
+    fungsi:'Jadi kata inti dalam kelompok kata benda. Bisa berperan sebagai pelaku, yang dikenai tindakan, atau pelengkap.',
+    identifikasi:'Biasanya bisa didahului "the", "a", atau "an". Bentuk tunggal (NN), jamak (NNS), atau nama diri (NNP).',
+    rumus:null,
+    contoh:[
+      {kalimat:'The <u>student</u> reads a <u>book</u>.', catatan:'"student" (NN) dan "book" (NN) masing-masing adalah kata benda tunggal.'},
+      {kalimat:'The <u>students</u> are in <u>Jakarta</u>.', catatan:'"students" (NNS) adalah kata benda jamak; "Jakarta" (NNP) adalah nama tempat.'}
+    ],
+    perbedaan:'NN hanya menandai satu kata. NP (Noun Phrase) adalah kelompok kata yang intinya kata benda. Keduanya berbeda.',
+    related:['noun-phrase','pronoun','determiner','subject','direct-object']},
+  'pronoun': {id:'pronoun', name:'Pronoun (Kata Ganti)', abbr:'PRP / PRP$ / WP / WP$ / WDT', category:'pos',
+    definition:'Kata pengganti orang atau benda, supaya tidak menyebut nama yang sama berulang-ulang.',
+    fungsi:'Menggantikan kata benda yang sudah disebut sebelumnya. "I, you, he, she, it, we, they" menggantikan orang/benda. "my, your, his, her" menunjukkan kepemilikan.',
+    identifikasi:'Kata seperti I, you, he, she, it, we, they, my, your, his, her; juga who, whom, whose, which.',
+    rumus:null,
+    contoh:[
+      {kalimat:'<u>She</u> loves <u>her</u> book.', catatan:'"She" menggantikan orang (PRP). "her" menunjukkan kepemilikan (PRP$).'},
+      {kalimat:'<u>Who</u> wrote this?', catatan:'"Who" adalah kata tanya pengganti orang (WP).'}
+    ],
+    perbedaan:'Kata ganti orang menggantikan kata benda. Kata ganti kepemilikan menunjukkan milik siapa. Keduanya berbeda dari determiner yang mendahului kata benda.',
+    related:['noun','determiner','subject']},
+  'verb': {id:'verb', name:'Verb (Kata Kerja)', abbr:'VB / VBD / VBG / VBN / VBP / VBZ', category:'pos',
+    definition:'Kata yang menyatakan tindakan, kejadian, atau keadaan.',
+    simple:'Kata kerja = kata tindakan atau keadaan. Contoh: go, eat, is.',
+    fungsi:'Jadi inti dari kelompok kata kerja. Bersama kata bantu membentuk predikat kalimat.',
+    identifikasi:'Bentuk dasar VB; VBD untuk lampau; VBG untuk -ing; VBN past participle (V3); VBP untuk I/you/we/they; VBZ untuk he/she/it.',
+    rumus:'Subjek + kata kerja (+ objek/pelengkap)',
+    contoh:[
+      {kalimat:'She <u>went</u> to school.', catatan:'"went" adalah bentuk lampau (V2).'},
+      {kalimat:'They <u>are</u> <u>reading</u>.', catatan:'"are" kata bantu (VBP); "reading" kata kerja -ing (VBG).'}
+    ],
+    perbedaan:'Verb adalah satu kata. Verb Phrase adalah kelompok kata dengan kata kerja sebagai intinya.',
+    related:['verb-phrase','main-verb','auxiliary-verb','v1','v2','v3','v-ing','v-s','irregular-verb','regular-verb']},
+  'auxiliary-verb': {id:'auxiliary-verb', name:'Auxiliary Verb (Kata Bantu)', abbr:'Aux', category:'pos',
+    definition:'Kata bantu yang mendampingi kata kerja utama untuk membentuk waktu, bentuk sedang berlangsung, kalimat pasif, atau kalimat negatif/tanya.',
+    fungsi:'Menandai kapan aksi terjadi (waktu), apakah sedang berlangsung, kalimat pasif, negatif, atau tanya.',
+    identifikasi:'Be (am, is, are, was, were, be, been, being), Do (do, does, did), Have (have, has, had), dan kata bantu modal.',
+    rumus:'Kata bantu + kata kerja (V1 / V-ing / V3)',
+    contoh:[
+      {kalimat:'She <u>has</u> finished.', catatan:'"has" adalah kata bantu untuk Present Perfect; "finished" berbentuk V3.'},
+      {kalimat:'They <u>are</u> playing.', catatan:'"are" adalah kata bantu untuk Present Continuous.'}
+    ],
+    perbedaan:'Kata bantu tidak punya arti tindakan sendiri. Kata kerja utama yang membawa makna.',
+    related:['verb','modal-verb','main-verb','auxiliary']},
+  'modal-verb': {id:'modal-verb', name:'Modal Verb (Kata Bantu Modal)', abbr:'MD', category:'pos',
+    definition:'Kata bantu yang mengungkapkan kemampuan, izin, kewajiban, kemungkinan, atau rencana di masa depan.',
+    fungsi:'Selalu diikuti kata kerja bentuk dasar tanpa "to". Tidak pernah ditambah -s.',
+    identifikasi:'can, could, will, would, shall, should, may, might, must.',
+    rumus:'Subjek + modal + kata kerja dasar (V1)',
+    contoh:[
+      {kalimat:'She <u>can</u> swim.', catatan:'"can" diikuti kata kerja dasar "swim". Tidak ditambah -s.'},
+      {kalimat:'You <u>must</u> not smoke.', catatan:'"must" + not + kata kerja dasar.'}
+    ],
+    perbedaan:'Modal tidak berubah bentuk (tidak pakai -s) dan selalu diikuti kata kerja dasar. Kata bantu biasa (be/do/have) bisa berubah bentuk.',
+    related:['auxiliary-verb','verb','modal-construction','negation']},
+  'adjective': {id:'adjective', name:'Adjective (Kata Sifat)', abbr:'JJ / JJR / JJS', category:'pos',
+    definition:'Kata yang menerangkan sifat atau keadaan kata benda.',
+    fungsi:'Menambah keterangan pada kata benda di dalam kelompok kata benda. Bisa juga jadi pelengkap setelah "be", "seem", "become".',
+    identifikasi:'JJ untuk bentuk dasar. JJR untuk perbandingan (biasanya -er). JJS untuk paling (biasanya -est).',
+    rumus:null,
+    contoh:[
+      {kalimat:'A <u>beautiful</u> garden.', catatan:'"beautiful" (JJ) menerangkan "garden".'},
+      {kalimat:'This is <u>better</u> than that.', catatan:'"better" (JJR) adalah bentuk perbandingan.'}
+    ],
+    perbedaan:'Kata sifat menerangkan kata benda. Kata keterangan menerangkan kata kerja, kata sifat, atau kata keterangan lain.',
+    related:['adjective-phrase','adverb','noun','subject-complement']},
+  'adverb': {id:'adverb', name:'Adverb (Kata Keterangan)', abbr:'RB / WRB', category:'pos',
+    definition:'Kata yang menerangkan kata kerja, kata sifat, kata keterangan lain, atau seluruh kalimat.',
+    fungsi:'Menjelaskan bagaimana, kapan, di mana, seberapa sering, atau seberapa.',
+    identifikasi:'Sering berakhiran -ly (quickly, carefully). WRB untuk when, where, why, how.',
+    rumus:null,
+    contoh:[
+      {kalimat:'She runs <u>quickly</u>.', catatan:'"quickly" (RB) menerangkan kata kerja "runs".'},
+      {kalimat:'<u>When</u> did you arrive?', catatan:'"When" (WRB) adalah kata keterangan tanya.'}
+    ],
+    perbedaan:'Kata keterangan menerangkan kata kerja/sifat/keterangan. Kata sifat menerangkan kata benda.',
+    related:['adverb-phrase','adjective','adverbial']},
+  'determiner': {id:'determiner', name:'Determiner (Kata Penunjuk)', abbr:'DT', category:'pos',
+    definition:'Kata yang membatasi atau menentukan kata benda mana yang dimaksud.',
+    fungsi:'Selalu muncul sebelum kata benda di dalam kelompok kata benda.',
+    identifikasi:'the, a, an, this, that, these, those, some, any, each, every.',
+    rumus:'Kata penunjuk + (kata sifat) + kata benda',
+    contoh:[
+      {kalimat:'<u>The</u> cat sleeps.', catatan:'"The" menunjukkan kucing tertentu.'},
+      {kalimat:'<u>An</u> apple.', catatan:'"An" sebelum kata yang diawali bunyi vokal.'}
+    ],
+    perbedaan:'Kata penunjuk bukan kata sifat. Fungsinya membatasi kata benda mana, bukan menerangkan sifatnya.',
+    related:['noun','noun-phrase','pronoun']},
+  'preposition': {id:'preposition', name:'Preposition (Kata Depan)', abbr:'IN', category:'pos',
+    definition:'Kata yang menghubungkan kata benda atau kata ganti dengan bagian lain kalimat, biasanya menunjukkan tempat, waktu, atau cara.',
+    fungsi:'Jadi inti dari kelompok kata depan.',
+    identifikasi:'in, on, at, of, to (sebagai kata depan), with, for, from, by, about, between, dan lain-lain.',
+    rumus:'Kata depan + kelompok kata benda → kelompok kata depan',
+    contoh:[
+      {kalimat:'She went <u>to</u> the market.', catatan:'"to" di sini adalah kata depan, diikuti "the market" (kelompok kata benda).'},
+      {kalimat:'The book <u>on</u> the table.', catatan:'"on" menunjukkan posisi di atas meja.'}
+    ],
+    perbedaan:'Kata depan diikuti kata benda. "to" sebagai penanda kata kerja dasar diikuti kata kerja.',
+    related:['prepositional-phrase','noun-phrase']},
+  'conjunction': {id:'conjunction', name:'Conjunction (Kata Sambung)', abbr:'CC', category:'pos',
+    definition:'Kata yang menghubungkan dua bagian kalimat yang setara, seperti kata, kelompok kata, atau klausa.',
+    fungsi:'Menggabungkan dua bagian yang sejajar.',
+    identifikasi:'for, and, nor, but, or, yet, so.',
+    rumus:'Bagian A + kata sambung + bagian B',
+    contoh:[
+      {kalimat:'I like tea <u>and</u> coffee.', catatan:'"and" menghubungkan dua kata benda.'},
+      {kalimat:'She is tired <u>but</u> happy.', catatan:'"but" menghubungkan dua kata sifat.'}
+    ],
+    perbedaan:'Kata sambung setara menghubungkan dua hal yang setara. Kata hubung bertingkat menghubungkan klausa utama dengan klausa bawahan.',
+    related:['subordinate-clause','main-clause']},
+  'infinitive-marker': {id:'infinitive-marker', name:'Infinitive Marker (Penanda "to")', abbr:'TO', category:'pos',
+    definition:'Kata "to" yang muncul sebelum kata kerja bentuk dasar.',
+    fungsi:'Menandai bentuk kata kerja dasar setelah "to". Bisa berperan sebagai pelengkap atau keterangan.',
+    identifikasi:'"to" yang diikuti kata kerja dasar. Berbeda dari "to" sebagai kata depan yang diikuti kata benda.',
+    rumus:'to + kata kerja dasar',
+    contoh:[
+      {kalimat:'She wants <u>to</u> learn.', catatan:'"to learn" adalah kelompok to + kata kerja dasar.'},
+      {kalimat:'I went <u>to</u> the shop.', catatan:'Di sini "to" adalah kata depan, diikuti kata benda "the shop".'}
+    ],
+    perbedaan:'"to" penanda + kata kerja dasar. "to" kata depan + kata benda.',
+    related:['infinitive','infinitive-phrase','gerund']},
+  'numeral': {id:'numeral', name:'Numeral (Kata Bilangan)', abbr:'CD', category:'pos',
+    definition:'Kata yang menyatakan jumlah atau urutan.',
+    fungsi:'Menjelaskan berapa banyak atau urutan ke berapa.',
+    identifikasi:'one, two, three, ... untuk jumlah. first, second, third, ... untuk urutan.',
+    rumus:null,
+    contoh:[{kalimat:'<u>Three</u> books are on the table.', catatan:'"Three" (CD) menjelaskan jumlah "books".'}],
+    perbedaan:'Kata bilangan jumlah menjawab "berapa?". Kata bilangan urutan menjawab "ke berapa?".',
+    related:['noun','noun-phrase','determiner']},
+  'interjection': {id:'interjection', name:'Interjection (Kata Seru)', abbr:'UH', category:'pos',
+    definition:'Kata yang mengungkapkan perasaan atau reaksi spontan.',
+    fungsi:'Berdiri sendiri, tidak menempel pada bagian kalimat lain.',
+    identifikasi:'oh, wow, hey, hi, hello, yes, okay.',
+    rumus:null,
+    contoh:[{kalimat:'<u>Wow</u>, that\'s amazing!', catatan:'"Wow" adalah kata seru, sering diikuti koma.'}],
+    perbedaan:'Kata seru bukan pelaku atau objek. Ia hanya menambah ekspresi.',
+    related:[]},
+  'punctuation': {id:'punctuation', name:'Punctuation (Tanda Baca)', abbr:'PUNCT', category:'pos',
+    definition:'Tanda yang memisahkan, menutup, atau menandai struktur kalimat.',
+    fungsi:'Menandai batas kalimat, kutipan, pertanyaan, atau seruan.',
+    identifikasi:'titik (.), koma (,), tanda tanya (?), tanda seru (!), titik dua (:), titik koma (;).',
+    rumus:null,
+    contoh:[{kalimat:'She came, saw, and conquered.', catatan:'Koma memisahkan tiga aksi yang sejajar.'}],
+    perbedaan:'Koma memisahkan bagian dalam satu kalimat. Titik mengakhiri kalimat.',
+    related:[]},
+  'noun-phrase': {id:'noun-phrase', name:'Noun Phrase (Kelompok Kata Benda)', abbr:'NP', category:'phrase',
+    definition:'Kelompok kata yang intinya kata benda atau kata ganti.',
+    fungsi:'Berperan sebagai pelaku, objek, atau pelengkap dalam kalimat.',
+    identifikasi:'Biasanya dimulai dengan kata penunjuk atau langsung kata benda. Bisa memuat kata sifat sebelum kata benda.',
+    rumus:'(kata penunjuk) + (kata sifat) + kata benda',
+    contoh:[{kalimat:'<u>The intelligent student</u> reads <u>a book</u>.', catatan:'NP pertama ("The intelligent student") adalah pelaku. NP kedua ("a book") adalah objek langsung.'}],
+    perbedaan:'NP adalah kelompok kata. NN hanya satu kata. Pelaku (Subject) adalah peran NP dalam kalimat.',
+    related:['noun','determiner','adjective','subject','direct-object']},
+  'verb-phrase': {id:'verb-phrase', name:'Verb Phrase (Kelompok Kata Kerja)', abbr:'VP', category:'phrase',
+    definition:'Kelompok kata yang intinya kata kerja, bisa memuat kata bantu.',
+    fungsi:'Menjadi predikat kalimat (bagian yang menyatakan apa yang dilakukan pelaku).',
+    identifikasi:'Dimulai oleh kata kerja atau kata bantu/kata bantu modal.',
+    rumus:'(kata bantu/modal) + kata kerja inti (+ objek/pelengkap)',
+    contoh:[{kalimat:'She <u>has been reading</u> a book.', catatan:'"has been reading" adalah VP dengan dua kata bantu dan satu kata kerja inti.'}],
+    perbedaan:'VP adalah kelompok kata. Verb adalah satu kata. Predikat adalah peran VP dalam kalimat.',
+    related:['verb','auxiliary-verb','main-verb','predicate','modal-verb']},
+  'prepositional-phrase': {id:'prepositional-phrase', name:'Prepositional Phrase (Kelompok Kata Depan)', abbr:'PP', category:'phrase',
+    definition:'Kelompok kata yang dimulai dengan kata depan, diikuti kata benda.',
+    fungsi:'Menjelaskan tempat, waktu, atau cara. Bisa juga menerangkan kata benda.',
+    identifikasi:'Dimulai oleh kata depan seperti in, on, at, of, to, with, for.',
+    rumus:'kata depan + kelompok kata benda',
+    contoh:[
+      {kalimat:'She went <u>to the market</u>.', catatan:'"to the market" menjelaskan ke mana dia pergi.'},
+      {kalimat:'The book <u>on the table</u> is mine.', catatan:'"on the table" menerangkan "the book".'}
+    ],
+    perbedaan:'Kata depan bukan kata benda. Inti kelompok ini adalah kata depan, bukan kata benda.',
+    related:['preposition','noun-phrase','adverbial']},
+  'adjective-phrase': {id:'adjective-phrase', name:'Adjective Phrase (Kelompok Kata Sifat)', abbr:'AdjP', category:'phrase',
+    definition:'Kelompok kata yang intinya kata sifat.',
+    fungsi:'Menerangkan kata benda atau melengkapi makna subjek.',
+    identifikasi:'Intinya kata sifat. Bisa didahului kata keterangan seperti very atau quite.',
+    rumus:'(kata keterangan) + kata sifat',
+    contoh:[{kalimat:'A <u>very tall</u> building.', catatan:'"very tall" menerangkan "building".'}],
+    perbedaan:'Inti kelompok ini adalah kata sifat. Kelompok kata benda intinya kata benda.',
+    related:['adjective','adverb','noun-phrase','subject-complement']},
+  'adverb-phrase': {id:'adverb-phrase', name:'Adverb Phrase (Kelompok Kata Keterangan)', abbr:'AdvP', category:'phrase',
+    definition:'Kelompok kata yang intinya kata keterangan.',
+    fungsi:'Menerangkan kata kerja, kata sifat, kata keterangan lain, atau seluruh kalimat.',
+    identifikasi:'Intinya kata keterangan. Bisa didahului penguat seperti very atau quite.',
+    rumus:'(kata keterangan) + kata keterangan',
+    contoh:[{kalimat:'She speaks <u>very clearly</u>.', catatan:'"very clearly" menerangkan cara berbicara.'}],
+    perbedaan:'Kata keterangan menerangkan kata kerja/sifat/keterangan. Kata sifat menerangkan kata benda.',
+    related:['adverb','adverbial','adjective-phrase']},
+  'infinitive-phrase': {id:'infinitive-phrase', name:'Infinitive Phrase (Kelompok "to" + Kata Kerja)', abbr:'InfP', category:'phrase',
+    definition:'Kelompok kata yang dimulai dengan "to" dan diikuti kata kerja dasar.',
+    fungsi:'Bisa berperan sebagai pelaku, objek, pelengkap, atau keterangan tujuan.',
+    identifikasi:'Dimulai "to" yang diikuti kata kerja bentuk dasar (V1).',
+    rumus:'to + V1 (+ objek/pelengkap)',
+    contoh:[{kalimat:'She wants <u>to study English</u>.', catatan:'"to study English" adalah objek dari "wants".'}],
+    perbedaan:'Kelompok ini dimulai "to" + kata kerja dasar. Kelompok kata kerja -ing berfungsi sebagai kata benda.',
+    related:['infinitive','infinitive-marker','gerund-phrase','gerund']},
+  'gerund-phrase': {id:'gerund-phrase', name:'Gerund Phrase (Kelompok Kata Kerja -ing)', abbr:'GerP', category:'phrase',
+    definition:'Kelompok kata yang dimulai kata kerja -ing dan berfungsi sebagai kata benda.',
+    fungsi:'Berperan sebagai pelaku, objek, atau pelengkap.',
+    identifikasi:'Dimulai kata kerja -ing. Sering bisa diganti dengan "it" atau "something".',
+    rumus:'V-ing (+ objek/pelengkap)',
+    contoh:[{kalimat:'<u>Reading books</u> is fun.', catatan:'"Reading books" adalah pelaku kalimat.'}],
+    perbedaan:'Kelompok -ing sebagai kata benda berbeda dari kata kerja -ing yang berfungsi sebagai kata kerja.',
+    related:['gerund','v-ing','infinitive-phrase','noun-phrase']},
+  'participial-phrase': {id:'participial-phrase', name:'Participial Phrase (Kelompok Kata Kerja -ing/-V3 sebagai penjelas)', abbr:'PartP', category:'phrase',
+    definition:'Kelompok kata dengan kata kerja -ing atau V3 sebagai intinya, dipakai untuk menjelaskan kata benda.',
+    fungsi:'Menjelaskan kata benda seperti kata sifat.',
+    identifikasi:'Intinya kata kerja -ing atau V3 tanpa kata bantu.',
+    rumus:'V-ing / V3 (+ objek/pelengkap)',
+    contoh:[
+      {kalimat:'The man <u>wearing a hat</u> is my uncle.', catatan:'"wearing a hat" menjelaskan "the man".'},
+      {kalimat:'The book <u>written by Mary</u> is famous.', catatan:'"written by Mary" menjelaskan "the book".'}
+    ],
+    perbedaan:'Kelompok ini berfungsi sebagai penjelas kata benda. Gerund phrase berfungsi sebagai kata benda.',
+    related:['v-ing','v3','gerund-phrase','adjective']},
+  'subject': {id:'subject', name:'Subject (Pelaku)', abbr:null, category:'sentence',
+    definition:'Bagian kalimat yang menjadi topik dan menentukan bentuk kata kerja.',
+    fungsi:'Menentukan apakah kata kerja perlu ditambah -s atau tidak, dan menjadi fokus kalimat.',
+    identifikasi:'Biasanya kelompok kata benda sebelum kata kerja utama. Kalau pelakunya he/she/it, kata kerja harus pakai -s.',
+    rumus:'Pelaku + predikat',
+    contoh:[
+      {kalimat:'<u>She</u> reads a book.', catatan:'"She" adalah pelaku. Karena dia he/she/it, kata kerjanya "reads" pakai -s.'},
+      {kalimat:'<u>The students</u> read books.', catatan:'"The students" pelakunya jamak, jadi kata kerjanya "read" tanpa -s.'}
+    ],
+    perbedaan:'Pelaku adalah peran dalam kalimat. Kata benda adalah jenis kata. Bisa ada kata benda yang bukan pelaku.',
+    related:['noun-phrase','predicate','subject-verb-agreement','direct-object']},
+  'predicate': {id:'predicate', name:'Predicate (Predikat)', abbr:null, category:'sentence',
+    definition:'Bagian kalimat yang menyatakan apa yang dilakukan atau dikatakan tentang pelaku.',
+    fungsi:'Berisi kata kerja utama dan pelengkapnya.',
+    identifikasi:'Semua setelah pelaku, biasanya dimulai oleh kata kerja atau kata bantu.',
+    rumus:'Pelaku + predikat',
+    contoh:[{kalimat:'She <u>reads a book every night</u>.', catatan:'Predikat mencakup kata kerja + objek + keterangan waktu.'}],
+    perbedaan:'Predikat adalah peran dalam kalimat. Kelompok kata kerja adalah salah satu wujud predikat.',
+    related:['verb-phrase','subject','main-verb']},
+  'main-verb': {id:'main-verb', name:'Main Verb (Kata Kerja Inti)', abbr:null, category:'sentence',
+    definition:'Kata kerja utama dalam predikat yang membawa arti sebenarnya.',
+    fungsi:'Jadi inti arti dari predikat.',
+    identifikasi:'Kata kerja terakhir setelah kata bantu atau kata bantu modal.',
+    rumus:'(kata bantu/modal) + kata kerja inti',
+    contoh:[{kalimat:'She has <u>finished</u>.', catatan:'"finished" adalah kata kerja inti; "has" hanya kata bantu.'}],
+    perbedaan:'Kata kerja inti membawa arti. Kata bantu hanya menandai waktu/bentuk.',
+    related:['verb','auxiliary-verb','verb-phrase']},
+  'direct-object': {id:'direct-object', name:'Direct Object (Objek Langsung)', abbr:null, category:'sentence',
+    definition:'Kata benda yang langsung dikenai tindakan dari kata kerja.',
+    fungsi:'Melengkapi kata kerja transitif supaya makna kalimat lengkap.',
+    identifikasi:'Muncul setelah kata kerja transitif. Bisa diganti dengan "it" atau "them".',
+    rumus:'Pelaku + kata kerja + objek',
+    contoh:[{kalimat:'She reads <u>a book</u>.', catatan:'"a book" adalah objek langsung.'}],
+    perbedaan:'Objek langsung dikenai tindakan. Objek tidak langsung menerima manfaatnya.',
+    related:['indirect-object','noun-phrase','verb','subject-complement']},
+  'indirect-object': {id:'indirect-object', name:'Indirect Object (Objek Tidak Langsung)', abbr:null, category:'sentence',
+    definition:'Kata benda yang menyatakan penerima atau penerima manfaat dari tindakan.',
+    fungsi:'Menunjukkan kepada siapa atau untuk siapa tindakan dilakukan.',
+    identifikasi:'Biasanya muncul sebelum objek langsung, atau setelah "to/for".',
+    rumus:'Pelaku + kata kerja + penerima + objek / Pelaku + kata kerja + objek + to/for + penerima',
+    contoh:[
+      {kalimat:'She gave <u>me</u> a book.', catatan:'"me" adalah penerimanya.'},
+      {kalimat:'She gave a book <u>to me</u>.', catatan:'Bentuk lain dengan kata depan "to".'}
+    ],
+    perbedaan:'Objek tidak langsung menerima manfaat. Objek langsung adalah yang diberikan/dikirim.',
+    related:['direct-object','prepositional-phrase']},
+  'subject-complement': {id:'subject-complement', name:'Subject Complement (Pelengkap Subjek)', abbr:null, category:'sentence',
+    definition:'Bagian kalimat yang menjelaskan pelaku setelah kata kerja seperti be, seem, become.',
+    fungsi:'Menyatakan sifat atau identitas pelaku.',
+    identifikasi:'Muncul setelah kata kerja penghubung. Bisa berupa kata benda atau kata sifat.',
+    rumus:'Pelaku + kata kerja penghubung + pelengkap',
+    contoh:[
+      {kalimat:'She is <u>a doctor</u>.', catatan:'"a doctor" menjelaskan pelaku "She".'},
+      {kalimat:'The soup tastes <u>delicious</u>.', catatan:'"delicious" menjelaskan supnya.'}
+    ],
+    perbedaan:'Pelengkap subjek menjelaskan pelaku. Pelengkap objek menjelaskan objek.',
+    related:['copular-verb','adjective-phrase','noun-phrase']},
+  'object-complement': {id:'object-complement', name:'Object Complement (Pelengkap Objek)', abbr:null, category:'sentence',
+    definition:'Bagian kalimat yang menjelaskan objek dengan menyatakan sifat atau identitas baru.',
+    fungsi:'Melengkapi kata kerja seperti make, call, name, consider.',
+    identifikasi:'Muncul setelah objek langsung. Bisa berupa kata benda atau kata sifat.',
+    rumus:'Pelaku + kata kerja + objek + pelengkap',
+    contoh:[{kalimat:'They elected her <u>president</u>.', catatan:'"president" menjelaskan objek "her".'}],
+    perbedaan:'Pelengkap objek menjelaskan objek. Pelengkap subjek menjelaskan pelaku.',
+    related:['subject-complement','direct-object']},
+  'adverbial': {id:'adverbial', name:'Adverbial (Keterangan)', abbr:null, category:'sentence',
+    definition:'Bagian kalimat yang menerangkan kata kerja atau seluruh kalimat: kapan, di mana, bagaimana, mengapa.',
+    fungsi:'Menambah keterangan waktu, tempat, cara, atau alasan.',
+    identifikasi:'Sering berupa kata keterangan atau kelompok kata depan. Bisa dipindah posisinya.',
+    rumus:null,
+    contoh:[
+      {kalimat:'She sings <u>beautifully</u>.', catatan:'"beautifully" menjelaskan cara bernyanyi.'},
+      {kalimat:'<u>Yesterday</u> we met.', catatan:'"Yesterday" menjelaskan kapan.'}
+    ],
+    perbedaan:'Keterangan adalah peran dalam kalimat. Kata keterangan adalah jenis kata yang mengisinya.',
+    related:['adverb','adverb-phrase','prepositional-phrase']},
+  'main-clause': {id:'main-clause', name:'Main Clause (Klausa Utama)', abbr:null, category:'sentence',
+    definition:'Bagian kalimat yang bisa berdiri sendiri sebagai kalimat lengkap.',
+    fungsi:'Menyampaikan ide utama. Bisa dihubungkan dengan klausa bawahan.',
+    identifikasi:'Punya pelaku dan kata kerja, tidak dimulai oleh kata hubung bertingkat.',
+    rumus:null,
+    contoh:[{kalimat:'<u>She reads a book</u> because she loves stories.', catatan:'"She reads a book" bisa berdiri sendiri sebagai kalimat.'}],
+    perbedaan:'Klausa utama bisa berdiri sendiri. Klausa bawahan tidak.',
+    related:['subordinate-clause','subject','predicate']},
+  'subordinate-clause': {id:'subordinate-clause', name:'Subordinate Clause (Klausa Bawahan)', abbr:null, category:'sentence',
+    definition:'Bagian kalimat yang tidak bisa berdiri sendiri dan bergantung pada klausa utama.',
+    fungsi:'Menambah keterangan atau informasi pada klausa utama.',
+    identifikasi:'Dimulai oleh kata hubung seperti because, when, if, although, atau who, which.',
+    rumus:'kata hubung + pelaku + kata kerja',
+    contoh:[{kalimat:'She reads a book <u>because she loves stories</u>.', catatan:'"because she loves stories" menjelaskan alasannya.'}],
+    perbedaan:'Klausa bawahan tidak bisa berdiri sendiri. Klausa utama bisa.',
+    related:['main-clause','conjunction']},
+  'simple-present': {id:'simple-present', name:'Simple Present (Waktu Sekarang Sederhana)', abbr:null, category:'tense',
+    definition:'Bentuk waktu untuk menyatakan kebiasaan, fakta umum, atau keadaan saat ini.',
+    simple:'Untuk kebiasaan atau fakta. Contoh: I eat rice every day. Untuk he/she/it, kata kerja + -s.',
+    fungsi:'Menyatakan hal yang dilakukan berulang, kebenaran umum, atau jadwal.',
+    identifikasi:'Kata kerja dasar (V1) untuk I/you/we/they. Kata kerja + -s (V-s) untuk he/she/it.',
+    rumus:'Pelaku + V1 / V-s',
+    contoh:[
+      {kalimat:'She <u>reads</u> a book every night.', catatan:'Pelakunya "she", jadi kata kerjanya ditambah -s → "reads".'},
+      {kalimat:'They <u>play</u> football.', catatan:'Pelakunya jamak, jadi kata kerjanya bentuk dasar "play".'}
+    ],
+    perbedaan:'Simple Present untuk kebiasaan/fakta. Present Continuous untuk aksi yang sedang berlangsung.',
+    related:['v1','v-s','subject-verb-agreement','present-continuous']},
+  'simple-past': {id:'simple-past', name:'Simple Past (Waktu Lampau Sederhana)', abbr:null, category:'tense',
+    definition:'Bentuk waktu untuk menyatakan aksi atau keadaan yang sudah selesai di masa lampau.',
+    simple:'Untuk kejadian yang sudah selesai. Contoh: I ate rice yesterday. Kata kerja pakai V2.',
+    fungsi:'Menceritakan kejadian lampau yang sudah tuntas.',
+    identifikasi:'Kata kerja bentuk kedua (V2): untuk kata kerja beraturan tambah -ed, untuk tidak beraturan bentuknya khusus.',
+    rumus:'Pelaku + V2',
+    contoh:[
+      {kalimat:'She <u>went</u> to the market.', catatan:'"went" adalah bentuk V2 dari "go" (tidak beraturan).'},
+      {kalimat:'They <u>watched</u> a movie.', catatan:'Kata kerja beraturan, jadi ditambah -ed → "watched".'}
+    ],
+    perbedaan:'Simple Past untuk aksi lampau yang sudah tuntas. Present Perfect untuk aksi lampau yang masih berhubungan dengan sekarang.',
+    related:['v2','irregular-verb','regular-verb','past-continuous','past-perfect']},
+  'simple-future': {id:'simple-future', name:'Simple Future (Waktu Akan Datang Sederhana)', abbr:null, category:'tense',
+    definition:'Bentuk waktu untuk menyatakan aksi atau keadaan yang akan terjadi.',
+    simple:'Untuk kejadian yang akan datang. Contoh: I will eat. Pola: will + V1.',
+    fungsi:'Menyatakan prediksi, janji, keputusan spontan, atau rencana.',
+    identifikasi:'will atau shall + kata kerja dasar (V1).',
+    rumus:'Pelaku + will + V1',
+    contoh:[{kalimat:'She <u>will call</u> you tomorrow.', catatan:'"will call" menyatakan aksi yang akan terjadi.'}],
+    perbedaan:'"will" untuk prediksi atau keputusan spontan. "be going to" untuk rencana yang sudah ada.',
+    related:['modal-verb','v1','future-continuous','future-perfect']},
+  'present-continuous': {id:'present-continuous', name:'Present Continuous (Sedang Berlangsung Sekarang)', abbr:null, category:'tense',
+    definition:'Bentuk waktu untuk menyatakan aksi yang sedang berlangsung saat ini.',
+    simple:'Untuk kejadian yang sedang berlangsung. Contoh: I am eating. Pola: am/is/are + V-ing.',
+    fungsi:'Menyatakan aksi yang sedang terjadi, tren sementara, atau rencana dekat.',
+    identifikasi:'am/is/are + kata kerja -ing.',
+    rumus:'Pelaku + am/is/are + V-ing',
+    contoh:[{kalimat:'She <u>is reading</u> a book.', catatan:'"is reading" menyatakan aksi yang sedang berlangsung.'}],
+    perbedaan:'Present Continuous untuk aksi sedang berlangsung. Simple Present untuk kebiasaan atau fakta.',
+    related:['v-ing','auxiliary-verb','simple-present']},
+  'past-continuous': {id:'past-continuous', name:'Past Continuous (Sedang Berlangsung di Lampau)', abbr:null, category:'tense',
+    definition:'Bentuk waktu untuk menyatakan aksi yang sedang berlangsung di masa lampau.',
+    fungsi:'Menjelaskan latar aksi lampau, atau aksi yang terganggu aksi lain.',
+    identifikasi:'was/were + kata kerja -ing.',
+    rumus:'Pelaku + was/were + V-ing',
+    contoh:[{kalimat:'She <u>was reading</u> when I called.', catatan:'Aksi "was reading" sedang berlangsung di lampau.'}],
+    perbedaan:'Past Continuous untuk aksi yang sedang berlangsung di lampau. Simple Past untuk aksi yang sudah tuntas.',
+    related:['v-ing','auxiliary-verb','simple-past']},
+  'future-continuous': {id:'future-continuous', name:'Future Continuous (Akan Sedang Berlangsung)', abbr:null, category:'tense',
+    definition:'Bentuk waktu untuk menyatakan aksi yang akan sedang berlangsung di waktu tertentu di masa depan.',
+    fungsi:'Menekankan bahwa aksi akan berlangsung terus pada suatu waktu di masa depan.',
+    identifikasi:'will + be + kata kerja -ing.',
+    rumus:'Pelaku + will + be + V-ing',
+    contoh:[{kalimat:'At 8 pm, I <u>will be studying</u>.', catatan:'Pada jam 8 nanti, belajar akan sedang berlangsung.'}],
+    perbedaan:'Future Continuous menekankan proses. Future Perfect menekankan penyelesaian.',
+    related:['simple-future','future-perfect','v-ing']},
+  'present-perfect': {id:'present-perfect', name:'Present Perfect (Selesai tapi Masih Berhubungan)', abbr:null, category:'tense',
+    definition:'Bentuk waktu untuk aksi yang terjadi di masa lampau namun masih berhubungan dengan sekarang.',
+    simple:'Untuk kejadian yang sudah selesai tapi masih relevan. Contoh: I have eaten. Pola: have/has + V3.',
+    fungsi:'Menyatakan pengalaman, hasil, atau aksi yang baru saja selesai.',
+    identifikasi:'have/has + kata kerja bentuk V3.',
+    rumus:'Pelaku + have/has + V3',
+    contoh:[
+      {kalimat:'She <u>has finished</u> her homework.', catatan:'Pekerjaannya baru selesai, hasilnya masih relevan sekarang.'},
+      {kalimat:'I <u>have visited</u> Bali twice.', catatan:'Menyatakan pengalaman hidup.'}
+    ],
+    perbedaan:'Present Perfect masih berhubungan dengan sekarang. Simple Past sudah tuntas dan terikat waktu lampau.',
+    related:['v3','auxiliary-verb','simple-past']},
+  'past-perfect': {id:'past-perfect', name:'Past Perfect (Selesai Sebelum Aksi Lampau Lain)', abbr:null, category:'tense',
+    definition:'Bentuk waktu untuk aksi yang selesai sebelum aksi lain di masa lampau.',
+    fungsi:'Menandai mana aksi yang lebih dulu terjadi.',
+    identifikasi:'had + kata kerja V3.',
+    rumus:'Pelaku + had + V3',
+    contoh:[{kalimat:'She <u>had left</u> before I arrived.', catatan:'"had left" terjadi lebih dulu daripada "arrived".'}],
+    perbedaan:'Past Perfect untuk aksi yang lebih dulu di lampau. Simple Past untuk aksi lampau tunggal.',
+    related:['v3','simple-past','past-perfect-continuous']},
+  'future-perfect': {id:'future-perfect', name:'Future Perfect (Akan Selesai Sebelum Waktu Tertentu)', abbr:null, category:'tense',
+    definition:'Bentuk waktu untuk aksi yang akan selesai sebelum waktu tertentu di masa depan.',
+    fungsi:'Menekankan bahwa aksi akan sudah selesai pada suatu titik di masa depan.',
+    identifikasi:'will + have + kata kerja V3.',
+    rumus:'Pelaku + will + have + V3',
+    contoh:[{kalimat:'By 2030, she <u>will have graduated</u>.', catatan:'Pada tahun 2030, dia sudah lulus.'}],
+    perbedaan:'Future Perfect menekankan selesainya. Future Continuous menekankan keberlangsungannya.',
+    related:['v3','simple-future','future-continuous']},
+  'present-perfect-continuous': {id:'present-perfect-continuous', name:'Present Perfect Continuous (Berlangsung Sejak Dulu)', abbr:null, category:'tense',
+    definition:'Bentuk waktu untuk aksi yang dimulai di masa lampau dan masih berlanjut sampai sekarang.',
+    fungsi:'Menekankan lama aksi yang belum selesai.',
+    identifikasi:'have/has + been + kata kerja -ing.',
+    rumus:'Pelaku + have/has + been + V-ing',
+    contoh:[{kalimat:'She <u>has been studying</u> for two hours.', catatan:'Dia mulai belajar dua jam lalu dan masih belajar.'}],
+    perbedaan:'Bentuk ini menekankan lama berlangsungnya. Present Perfect menekankan hasilnya.',
+    related:['v-ing','present-perfect','auxiliary-verb']},
+  'past-perfect-continuous': {id:'past-perfect-continuous', name:'Past Perfect Continuous (Telah Berlangsung Sebelum Aksi Lampau)', abbr:null, category:'tense',
+    definition:'Bentuk waktu untuk aksi yang sudah berlangsung selama beberapa waktu sebelum titik di masa lampau.',
+    fungsi:'Menekankan lama aksi sebelum aksi lampau lain.',
+    identifikasi:'had + been + kata kerja -ing.',
+    rumus:'Pelaku + had + been + V-ing',
+    contoh:[{kalimat:'She <u>had been waiting</u> for an hour when the bus came.', catatan:'Dia sudah menunggu satu jam sebelum bus datang.'}],
+    perbedaan:'Bentuk ini menekankan lama. Past Perfect menekankan selesainya.',
+    related:['v-ing','past-perfect']},
+  'future-perfect-continuous': {id:'future-perfect-continuous', name:'Future Perfect Continuous (Akan Telah Berlangsung)', abbr:null, category:'tense',
+    definition:'Bentuk waktu untuk aksi yang akan sudah berlangsung selama beberapa waktu pada titik tertentu di masa depan.',
+    fungsi:'Menekankan lama aksi sampai titik di masa depan.',
+    identifikasi:'will + have + been + kata kerja -ing.',
+    rumus:'Pelaku + will + have + been + V-ing',
+    contoh:[{kalimat:'By next year, she <u>will have been working</u> here for a decade.', catatan:'Tahun depan, dia akan sudah bekerja di sini selama sepuluh tahun.'}],
+    perbedaan:'Menekankan lama aksi sampai titik masa depan. Ini bentuk yang paling jarang dipakai.',
+    related:['v-ing','future-perfect']},
+  'passive-voice': {id:'passive-voice', name:'Passive Voice (Kalimat Pasif)', abbr:null, category:'tense',
+    definition:'Bentuk kalimat di mana pelakunya menerima tindakan, bukan melakukan tindakan.',
+    fungsi:'Menekankan objek atau tindakannya. Sering dipakai kalau pelaku tidak diketahui atau tidak penting.',
+    identifikasi:'be + kata kerja V3, kadang diikuti "by + pelaku".',
+    rumus:'Pelaku + be + V3 (+ by + pelaku sebenarnya)',
+    contoh:[
+      {kalimat:'The book <u>was written</u> by Mary.', catatan:'Buku tidak menulis, tapi ditulis. Pelaku sebenarnya Mary.'},
+      {kalimat:'The window <u>is cleaned</u> every day.', catatan:'Jendela dibersihkan (oleh seseorang) setiap hari.'}
+    ],
+    perbedaan:'Kalimat aktif menekankan pelaku. Kalimat pasif menekankan yang dikenai tindakan.',
+    related:['v3','auxiliary-verb','simple-past']},
+  'modal-construction': {id:'modal-construction', name:'Modal Construction (Kalimat dengan Kata Bantu Modal)', abbr:null, category:'tense',
+    definition:'Konstruksi dengan kata bantu modal untuk menyatakan kemampuan, izin, kewajiban, kemungkinan, atau rencana.',
+    fungsi:'Menyatakan sikap pembicara terhadap aksi.',
+    identifikasi:'Kata bantu modal + kata kerja dasar (tanpa "to").',
+    rumus:'Pelaku + modal + V1',
+    contoh:[
+      {kalimat:'She <u>can swim</u>.', catatan:'"can" + kata kerja dasar "swim".'},
+      {kalimat:'You <u>must not smoke</u>.', catatan:'"must" + not + kata kerja dasar.'}
+    ],
+    perbedaan:'Modal tidak berubah bentuk dan selalu diikuti kata kerja dasar.',
+    related:['modal-verb','v1']},
+  'negation': {id:'negation', name:'Negation (Kalimat Negatif)', abbr:null, category:'tense',
+    definition:'Bentuk kalimat untuk menyangkal atau menolak.',
+    fungsi:'Menyatakan bahwa aksi atau keadaan tidak terjadi.',
+    identifikasi:'not setelah kata bantu, atau do/does/did + not + kata kerja dasar.',
+    rumus:'Kata bantu/modal + not + kata kerja',
+    contoh:[
+      {kalimat:'She <u>does not like</u> coffee.', catatan:'"does" + "not" + kata kerja dasar "like".'},
+      {kalimat:'They <u>aren\'t</u> coming.', catatan:'"are" + "not" disingkat jadi "aren\'t".'}
+    ],
+    perbedaan:'Kalau ada kata bantu, cukup tambah "not". Kalau tidak ada, pakai do/does/did.',
+    related:['auxiliary-verb','modal-verb','interrogative']},
+  'interrogative': {id:'interrogative', name:'Interrogative Sentences (Kalimat Tanya)', abbr:null, category:'tense',
+    definition:'Kalimat tanya, biasanya dibentuk dengan menukar posisi kata bantu dan pelaku.',
+    fungsi:'Menanyakan informasi atau konfirmasi.',
+    identifikasi:'Dimulai dengan kata bantu atau kata tanya, diakhiri tanda tanya.',
+    rumus:'(kata tanya) + kata bantu + pelaku + kata kerja ... ?',
+    contoh:[
+      {kalimat:'<u>Do</u> you like tea?', catatan:'Pertanyaan ya/tidak dengan kata bantu "do".'},
+      {kalimat:'<u>Where</u> does she live?', catatan:'Pertanyaan dengan kata tanya "where".'}
+    ],
+    perbedaan:'Pertanyaan ya/tidak dijawab dengan yes/no. Pertanyaan dengan kata tanya menanyakan informasi tertentu.',
+    related:['auxiliary-verb','negation']},
+  'subject-verb-agreement': {id:'subject-verb-agreement', name:'Subject-Verb Agreement (Kesesuaian Pelaku dan Kata Kerja)', abbr:null, category:'tense',
+    definition:'Aturan yang mengharuskan bentuk kata kerja cocok dengan pelakunya.',
+    fungsi:'Memastikan kata kerja sesuai dengan pelaku, terutama apakah pelakunya "he/she/it" atau bukan.',
+    identifikasi:'Pelaku he/she/it → kata kerja pakai -s. Pelaku lain (I/you/we/they) → kata kerja bentuk dasar.',
+    rumus:'Pelaku he/she/it + V-s / Pelaku lain + V1',
+    contoh:[
+      {kalimat:'She <u>reads</u>.', catatan:'Pelakunya "she", jadi kata kerja pakai -s.'},
+      {kalimat:'They <u>read</u>.', catatan:'Pelakunya "they", jadi kata kerja bentuk dasar.'}
+    ],
+    perbedaan:'Aturan ini hanya berlaku untuk Simple Present. Kalau ada kata bantu atau modal, kata kerja inti tetap bentuk dasar.',
+    related:['subject','v1','v-s','simple-present']},
+  'v1': {id:'v1', name:'V1 — Bentuk Dasar', abbr:'V1 / VB', category:'verbform',
+    definition:'Bentuk kata kerja paling dasar, seperti yang ada di kamus.',
+    simple:'Bentuk asli kata kerja seperti di kamus (go, eat). Dipakai setelah "to" atau dengan I/you/we/they.',
+    fungsi:'Dipakai untuk subjek I/you/we/they di Simple Present, setelah modal, dan setelah "to".',
+    identifikasi:'Bentuk kamus: go, eat, play.',
+    rumus:null,
+    contoh:[
+      {kalimat:'I <u>go</u> to school.', catatan:'"go" adalah V1 untuk pelaku I.'},
+      {kalimat:'She can <u>go</u>.', catatan:'Setelah modal, kata kerja pakai V1.'}
+    ],
+    perbedaan:'V1 adalah bentuk dasar. V-s hanya untuk he/she/it. V2 untuk lampau. V3 untuk perfect/pasif.',
+    related:['verb','v2','v3','v-ing','v-s','modal-verb']},
+  'v2': {id:'v2', name:'V2 — Bentuk Lampau', abbr:'V2 / VBD', category:'verbform',
+    definition:'Bentuk kata kerja untuk menyatakan lampau (Simple Past).',
+    simple:'Bentuk lampau kata kerja (went, ate). Untuk kejadian yang sudah selesai di masa lalu.',
+    fungsi:'Dipakai hanya di Simple Past, bukan setelah kata bantu.',
+    identifikasi:'Kata kerja beraturan: V1 + -ed. Kata kerja tidak beraturan: bentuk khusus (went, ate).',
+    rumus:null,
+    contoh:[{kalimat:'She <u>went</u> to market.', catatan:'"went" adalah V2 dari "go".'}],
+    perbedaan:'V2 hanya untuk Simple Past. V3 untuk perfect/pasif (setelah have/be).',
+    related:['v1','v3','simple-past','irregular-verb','regular-verb']},
+  'v3': {id:'v3', name:'V3 — Bentuk Ketiga (Past Participle)', abbr:'V3 / VBN', category:'verbform',
+    definition:'Bentuk kata kerja yang dipakai di perfect tense dan kalimat pasif.',
+    simple:'Bentuk kata kerja ketiga (gone, eaten). Dipakai setelah have/has/had atau be.',
+    fungsi:'Selalu dipakai setelah have/has/had (perfect) atau be (pasif).',
+    identifikasi:'Kata kerja beraturan: V1 + -ed (sama seperti V2). Tidak beraturan: bentuk khusus (gone, eaten).',
+    rumus:null,
+    contoh:[
+      {kalimat:'She has <u>eaten</u>.', catatan:'V3 setelah "has".'},
+      {kalimat:'The book was <u>written</u> by Mary.', catatan:'V3 dalam kalimat pasif.'}
+    ],
+    perbedaan:'V3 tidak pernah berdiri sendiri, harus ada have/be di depannya. V2 justru berdiri sendiri di Simple Past.',
+    related:['v1','v2','present-perfect','past-perfect','passive-voice','irregular-verb']},
+  'v-ing': {id:'v-ing', name:'V-ing — Bentuk -ing', abbr:'V-ing / VBG', category:'verbform',
+    definition:'Bentuk kata kerja dengan akhiran -ing.',
+    fungsi:'Dipakai untuk aksi yang sedang berlangsung (setelah be), atau sebagai kata benda (gerund).',
+    identifikasi:'V1 + -ing. Perhatikan ejaan: run → running, write → writing.',
+    rumus:null,
+    contoh:[
+      {kalimat:'She is <u>reading</u>.', catatan:'V-ing untuk aksi yang sedang berlangsung.'},
+      {kalimat:'<u>Reading</u> is fun.', catatan:'V-ing yang berfungsi sebagai kata benda (pelaku kalimat).'}
+    ],
+    perbedaan:'V-ing sebagai bagian kata kerja berbeda dari V-ing sebagai kata benda. Lihat konteks kalimatnya.',
+    related:['verb','present-continuous','gerund','gerund-phrase']},
+  'v-s': {id:'v-s', name:'V-s — Bentuk untuk He/She/It', abbr:'V-s / VBZ', category:'verbform',
+    definition:'Bentuk kata kerja dengan akhiran -s/-es yang dipakai untuk pelaku he, she, it di Simple Present.',
+    fungsi:'Menandai bahwa pelakunya orang ketiga tunggal (he, she, it, atau satu orang/benda).',
+    identifikasi:'V1 + -s / -es: goes, watches, studies.',
+    rumus:'Pelaku he/she/it + V-s',
+    contoh:[{kalimat:'She <u>goes</u> to school.', catatan:'"goes" adalah V-s untuk pelaku "she".'}],
+    perbedaan:'V-s hanya untuk he/she/it di Simple Present. Pelaku I/you/we/they pakai V1.',
+    related:['v1','simple-present','subject-verb-agreement']},
+  'infinitive': {id:'infinitive', name:'Infinitive (Bentuk "to" + Kata Kerja)', abbr:'to + V1', category:'verbform',
+    definition:'Bentuk kata kerja yang didahului "to", atau bentuk dasar tanpa "to" (setelah modal).',
+    fungsi:'Bisa berperan sebagai kata benda, kata sifat, atau keterangan.',
+    identifikasi:'to + V1. Atau V1 setelah modal seperti can, will, must.',
+    rumus:'to + V1',
+    contoh:[
+      {kalimat:'She wants <u>to learn</u>.', catatan:'Infinitive dengan "to".'},
+      {kalimat:'She can <u>swim</u>.', catatan:'Bentuk dasar tanpa "to" setelah modal.'}
+    ],
+    perbedaan:'Infinitive memakai kata kerja dasar. Gerund memakai kata kerja -ing sebagai kata benda.',
+    related:['infinitive-marker','infinitive-phrase','gerund','v1']},
+  'gerund': {id:'gerund', name:'Gerund (Kata Kerja -ing sebagai Kata Benda)', abbr:'V-ing (kata benda)', category:'verbform',
+    definition:'Bentuk kata kerja -ing yang berfungsi sebagai kata benda.',
+    fungsi:'Berperan sebagai pelaku, objek, atau pelengkap kalimat.',
+    identifikasi:'Kata kerja -ing yang bisa diganti "it" atau "something".',
+    rumus:null,
+    contoh:[
+      {kalimat:'<u>Swimming</u> is healthy.', catatan:'"Swimming" berperan sebagai pelaku.'},
+      {kalimat:'I enjoy <u>reading</u>.', catatan:'"reading" berperan sebagai objek.'}
+    ],
+    perbedaan:'Gerund berfungsi sebagai kata benda. Kata kerja -ing dalam kalimat yang sedang berlangsung berfungsi sebagai kata kerja.',
+    related:['v-ing','gerund-phrase','infinitive']},
+  'irregular-verb': {id:'irregular-verb', name:'Irregular Verb (Kata Kerja Tidak Beraturan)', abbr:null, category:'verbform',
+    definition:'Kata kerja yang bentuk lampau dan bentuk ketiganya tidak mengikuti pola -ed.',
+    fungsi:'Harus dihafal karena bentuknya khusus.',
+    identifikasi:'Contoh: go–went–gone; eat–ate–eaten; see–saw–seen.',
+    rumus:null,
+    contoh:[{kalimat:'She <u>went</u> and has <u>gone</u>.', catatan:'"went" adalah V2 dan "gone" adalah V3 dari "go".'}],
+    perbedaan:'Kata kerja beraturan: V2/V3 dibentuk dengan -ed. Kata kerja tidak beraturan: bentuknya khusus.',
+    related:['v2','v3','regular-verb','simple-past','present-perfect']},
+  'regular-verb': {id:'regular-verb', name:'Regular Verb (Kata Kerja Beraturan)', abbr:null, category:'verbform',
+    definition:'Kata kerja yang membentuk V2 dan V3 dengan menambahkan -ed.',
+    fungsi:'Mengikuti pola -ed yang sama untuk semua.',
+    identifikasi:'Contoh: play → played → played. watch → watched → watched.',
+    rumus:'V1 + -ed',
+    contoh:[{kalimat:'They <u>watched</u> a movie.', catatan:'"watched" adalah V2 dari "watch".'}],
+    perbedaan:'Kata kerja beraturan ikut pola -ed. Kata kerja tidak beraturan punya bentuk khusus.',
+    related:['v2','v3','irregular-verb']},
+  'auxiliary': {id:'auxiliary', name:'Auxiliary (Kata Bantu)', abbr:'Aux', category:'verbform',
+    definition:'Kata bantu (be, do, have) yang mendampingi kata kerja utama.',
+    fungsi:'Menandai waktu, bentuk sedang berlangsung, kalimat pasif, negatif, atau tanya.',
+    identifikasi:'am/is/are/was/were/be/been/being; do/does/did; have/has/had.',
+    rumus:'Kata bantu + kata kerja',
+    contoh:[{kalimat:'She <u>is</u> reading.', catatan:'"is" adalah kata bantu.'}],
+    perbedaan:'Kata bantu juga bisa berperan sebagai kata kerja utama. Contoh: "She is happy" — "is" di sini artinya "adalah".',
+    related:['auxiliary-verb','main-verb','modal-verb']},
+  'copular-verb': {id:'copular-verb', name:'Copular Verb (Kata Kerja Penghubung)', abbr:null, category:'verbform',
+    definition:'Kata kerja yang menghubungkan pelaku dengan keterangan tentang pelaku tersebut, bukan menyatakan tindakan.',
+    fungsi:'Menghubungkan pelaku dengan kata sifat atau kata benda yang menerangkannya.',
+    identifikasi:'be, seem, appear, become, feel, taste, look, sound.',
+    rumus:'Pelaku + kata kerja penghubung + pelengkap',
+    contoh:[
+      {kalimat:'She <u>is</u> a doctor.', catatan:'"is" menghubungkan "She" dengan "a doctor".'},
+      {kalimat:'The soup <u>tastes</u> delicious.', catatan:'"tastes" menghubungkan sup dengan rasanya.'}
+    ],
+    perbedaan:'Kata kerja penghubung diikuti pelengkap (kata sifat/benda), bukan objek.',
+    related:['subject-complement','main-verb','auxiliary']},
+  'transfer-to-ing': {id:'transfer-to-ing', name:'to + V-ing (pola keliru)', abbr:'to + V-ing', category:'transfer',
+    definition:'Pola keliru: "to" diikuti kata kerja bentuk -ing. Dalam bahasa Indonesia, "untuk" bisa diikuti kata kerja apa saja, sehingga pelajar sering menulis "to reading" alih-alih "to read" atau "reading".',
+    simple:'Setelah "to" harus V1, bukan -ing. SALAH: to reading. BENAR: to read.',
+    fungsi:'Pengingat bahwa setelah "to" sebagai penanda kata kerja dasar, kata kerja harus dalam bentuk V1 (bentuk kamus).',
+    identifikasi:'Lihat "to" yang langsung diikuti kata kerja berakhiran -ing.',
+    rumus:'SALAH: to + V-ing → BENAR: to + V1 (atau V-ing tanpa "to")',
+    contoh:[
+      {kalimat:'SALAH: I like <u>to reading</u> books.', catatan:'Setelah "to", gunakan V1: "I like to read books", atau tanpa "to": "I like reading books".'},
+      {kalimat:'BENAR: She wants <u>to study</u>.', catatan:'"to" + V1 "study".'}
+    ],
+    perbedaan:'"to" penanda kata kerja dasar selalu diikuti V1. "to" sebagai kata depan bisa diikuti V-ing (mis. "look forward to seeing"), tapi untuk pelajar A2/B1, "to + V1" adalah aturan yang aman.',
+    related:['infinitive','infinitive-marker','v-ing','v1']},
+  'transfer-more-er': {id:'transfer-more-er', name:'more + -er (pola keliru)', abbr:'more + JJR', category:'transfer',
+    definition:'Pola keliru: "more" dan akhiran -er dipakai bersamaan untuk membentuk perbandingan. Dalam bahasa Indonesia, "lebih" bisa digabung dengan kata sifat apapun, sehingga pelajar sering menulis "more taller" alih-alih "taller".',
+    simple:'Jangan pakai "more" dan -er bersamaan. SALAH: more taller. BENAR: taller atau more tall.',
+    fungsi:'Pengingat bahwa perbandingan bahasa Inggris memakai salah satu saja: "more + kata sifat" atau "kata sifat + -er".',
+    identifikasi:'Lihat "more" yang langsung diikuti kata sifat berakhiran -er.',
+    rumus:'SALAH: more + kata sifat + -er → BENAR: more + kata sifat ATAU kata sifat + -er',
+    contoh:[
+      {kalimat:'SALAH: He is <u>more taller</u> than me.', catatan:'Pilih satu: "taller than me" atau "more tall than me" (yang pertama lebih lazim).'},
+      {kalimat:'BENAR: She is <u>more beautiful</u>.', catatan:'Kata sifat panjang (≥3 suku kata) pakai "more".'},
+      {kalimat:'BENAR: He is <u>taller</u>.', catatan:'Kata sifat pendek pakai akhiran -er.'}
+    ],
+    perbedaan:'Kata sifat pendek (tall, big, fast) pakai -er/-est. Kata sifat panjang (beautiful, expensive) pakai more/most. Tidak boleh digabung.',
+    related:['adjective','transfer-be-agree']},
+  'transfer-be-agree': {id:'transfer-be-agree', name:'be + agree (pola keliru)', abbr:'be + agree', category:'transfer',
+    definition:'Pola keliru: menambahkan "be" (am/is/are) di depan kata kerja "agree". Dalam bahasa Indonesia, "setuju" adalah kata sifat sehingga wajar didahului "adalah"; dalam bahasa Inggris, "agree" adalah kata kerja sehingga langsung menjadi predikat.',
+    simple:'"Agree" sudah kata kerja, tidak butuh "be". SALAH: I am agree. BENAR: I agree.',
+    fungsi:'Pengingat bahwa "agree" sudah kata kerja, tidak perlu kata bantu "be" di depannya.',
+    identifikasi:'Lihat "am/is/are/was/were" yang langsung diikuti "agree".',
+    rumus:'SALAH: be + agree → BENAR: agree / agrees',
+    contoh:[
+      {kalimat:'SALAH: I <u>am agree</u> with you.', catatan:'Cukup "I agree with you".'},
+      {kalimat:'BENAR: She <u>agrees</u> with me.', catatan:'Untuk he/she/it, "agree" ditambah -s.'}
+    ],
+    perbedaan:'Kata kerja langsung menjadi predikat: "I agree", "She agrees". Kata sifat butuh "be": "I am happy", "She is ready".',
+    related:['verb','copular-verb','subject-verb-agreement']},
+  'transfer-discuss-about': {id:'transfer-discuss-about', name:'discuss about (pola keliru)', abbr:'discuss about', category:'transfer',
+    definition:'Pola keliru: "discuss" diikuti "about". Dalam bahasa Indonesia, "membahas tentang" wajar dipakai; dalam bahasa Inggris, "discuss" adalah kata kerja transitif sehingga langsung diikuti objeknya.',
+    simple:'"Discuss" tidak butuh "about". SALAH: discuss about the topic. BENAR: discuss the topic.',
+    fungsi:'Pengingat bahwa "discuss" langsung diikuti objeknya, tanpa preposisi.',
+    identifikasi:'Lihat "discuss" yang langsung diikuti "about".',
+    rumus:'SALAH: discuss about + objek → BENAR: discuss + objek',
+    contoh:[
+      {kalimat:'SALAH: We <u>discuss about</u> the topic.', catatan:'Cukup "We discuss the topic".'},
+      {kalimat:'BENAR: They <u>discussed</u> the plan.', catatan:'"discuss" langsung diikuti objeknya.'}
+    ],
+    perbedaan:'Kalau mau pakai "about", ganti "discuss" jadi "talk": "talk about the topic". Tapi "discuss" sendiri tidak butuh preposisi.',
+    related:['preposition','verb','transfer-married-with']},
+  'transfer-married-with': {id:'transfer-married-with', name:'married with (pola keliru)', abbr:'married with', category:'transfer',
+    definition:'Pola keliru: "married" diikuti "with". Dalam bahasa Indonesia, "menikah dengan" selalu pakai "dengan"; dalam bahasa Inggris, "married" diikuti "to".',
+    simple:'"Married" diikuti "to", bukan "with". SALAH: married with him. BENAR: married to him.',
+    fungsi:'Pengingat bahwa pasangan tetap "married to", bukan "married with".',
+    identifikasi:'Lihat "married" yang langsung diikuti "with".',
+    rumus:'SALAH: married with + orang → BENAR: married to + orang',
+    contoh:[
+      {kalimat:'SALAH: She is <u>married with</u> him.', catatan:'Gunakan "married to him".'},
+      {kalimat:'BENAR: He is <u>married to</u> my sister.', catatan:'"married to" + orang.'}
+    ],
+    perbedaan:'"Married to" untuk pasangan pernikahan. "Married with" tidak ada dalam bahasa Inggris standar untuk konteks ini.',
+    related:['preposition','transfer-discuss-about']},
+  'transfer-since-for': {id:'transfer-since-for', name:'since + durasi (pola keliru)', abbr:'since + durasi', category:'transfer',
+    definition:'Pola keliru: "since" diikuti ekspresi durasi (mis. "since 2 hours"). Dalam bahasa Indonesia, "sejak" dan "selama" sering tertukar; dalam bahasa Inggris, "since" untuk titik waktu (since 2020, since Monday) dan "for" untuk durasi (for 2 hours).',
+    fungsi:'Mengingatkan perbedaan "since" (titik waktu) dan "for" (durasi).',
+    identifikasi:'Lihat "since" yang diikuti angka + satuan waktu (hour, day, week, month, year).',
+    rumus:'SALAH: since + durasi → BENAR: for + durasi / since + titik waktu',
+    contoh:[
+      {kalimat:'SALAH: I have lived here <u>since 2 years</u>.', catatan:'Gunakan "for 2 years".'},
+      {kalimat:'BENAR: I have lived here <u>for 2 years</u>.', catatan:'Durasi pakai "for".'},
+      {kalimat:'BENAR: I have lived here <u>since 2020</u>.', catatan:'Titik waktu pakai "since".'}
+    ],
+    perbedaan:'"Since" + titik waktu (Monday, 2020, I was a child). "For" + durasi (2 hours, 3 days, a long time).',
+    related:['present-perfect','preposition','present-perfect-continuous']},
+  'missing-article': {id:'missing-article', name:'Missing Article (Kata Penunjuk Hilang)', abbr:'a/an/the', category:'transfer',
+    definition:'Kesalahan karena kata benda tunggal yang bisa dihitung (countable) dipakai tanpa kata penunjuk "a", "an", atau "the". Bahasa Indonesia tidak punya article, jadi pelajar sering lupa menambahkannya.',
+    fungsi:'Mengingatkan bahwa kata benda countable tunggal dalam bahasa Inggris hampir selalu butuh determiner.',
+    identifikasi:'Lihat kata benda tunggal (NN) yang tidak didahului "a", "an", "the", "my", "this", atau kata bilangan.',
+    rumus:'(a/an/the/my/this/…) + kata benda tunggal',
+    contoh:[
+      {kalimat:'SALAH: I read <u>book</u>.', catatan:'Gunakan "I read a book" atau "I read the book".'},
+      {kalimat:'BENAR: She is <u>a</u> teacher.', catatan:'"a" sebelum kata benda tunggal yang belum spesifik.'},
+      {kalimat:'BENAR: <u>The</u> book is on the table.', catatan:'"the" untuk kata benda yang sudah spesifik.'}
+    ],
+    perbedaan:'Countable tunggal butuh determiner. Uncountable (water, advice) dan plural (books) bisa tanpa determiner.',
+    related:['determiner','noun','noun-phrase']}
+};
+
+/* ============================================================
+   19. LIBRARY FUNCTIONS
+   ============================================================ */
+const LIB_STATE = {search:'', category:'all', selectedId:null, listExpanded:false, relatedExpanded:false};
+const LIB_INITIAL_LIST = 8;
+let _lastFocusedBeforeLib = null;
+let _libSearchTimer = null;
+
+const getGlossaryEntries = () => Object.values(GRAMMAR_GLOSSARY);
+const getCategoryName = catId => {
+  const c = GLOSSARY_CATEGORIES.find(c => c.id === catId);
+  return c ? c.name : catId;
+};
+
+function filterGlossary() {
+  const q = LIB_STATE.search.trim().toLowerCase();
+  const cat = LIB_STATE.category;
+  return getGlossaryEntries().filter(e => {
+    if (cat !== 'all' && e.category !== cat) return false;
+    if (!q) return true;
+    const hay = [e.name, e.abbr||'', e.definition, e.simple||'', e.fungsi||'', e.identifikasi||'', e.rumus||'', ...(e.contoh||[]).map(c => c.kalimat + ' ' + c.catatan)].join(' ').toLowerCase();
+    return hay.includes(q);
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function renderGlossaryCategories() {
+  const cats = [{id:'all', name:'Semua'}, ...GLOSSARY_CATEGORIES];
+  $('lib-cats').innerHTML = cats.map(c => {
+    const active = LIB_STATE.category === c.id ? ' active' : '';
+    return `<button type="button" class="lib-cat${active}" data-cat="${esc(c.id)}" role="tab" aria-selected="${LIB_STATE.category === c.id}">${esc(c.name)}</button>`;
+  }).join('');
+}
+
+function renderGlossaryList() {
+  const list = $('lib-list');
+  const results = filterGlossary();
+  if (!results.length) {
+    list.innerHTML = `<div class="lib-empty"><strong>Tidak ada istilah yang cocok.</strong>Coba kata kunci lain, atau ubah filter kategori di atas.</div>`;
+    return;
+  }
+  const expanded = LIB_STATE.listExpanded;
+  const shown = expanded ? results : results.slice(0, LIB_INITIAL_LIST);
+  const hidden = results.length - Math.min(LIB_INITIAL_LIST, results.length);
+  let html = shown.map(e => `
+    <button type="button" class="lib-item" data-term="${esc(e.id)}">
+      <div class="li-top">
+        <span class="li-name">${esc(e.name)}</span>
+        ${e.abbr ? `<span class="li-abbr">${esc(e.abbr)}</span>` : ''}
+        <span class="li-cat">${esc(getCategoryName(e.category))}</span>
+      </div>
+      <div class="li-def">${esc(e.simple || e.definition)}</div>
+    </button>`).join('');
+  if (hidden > 0) {
+    html += `<div style="text-align:center"><button class="view-more-btn" data-lib-expand="list">${expanded ? 'Show less' : `Show more (${hidden} lagi)`}</button></div>`;
+  }
+  list.innerHTML = html;
+}
+
+function renderGlossaryDetail(termId) {
+  const e = GRAMMAR_GLOSSARY[termId];
+  const detail = $('lib-detail');
+  if (!e) { detail.innerHTML = `<div class="lib-empty"><strong>Istilah tidak ditemukan.</strong></div>`; return; }
+  const related = (e.related||[]).map(id => GRAMMAR_GLOSSARY[id]).filter(Boolean);
+  const relLimit = 5, relExp = LIB_STATE.relatedExpanded;
+  const relShown = relExp ? related : related.slice(0, relLimit);
+  const relHidden = related.length - Math.min(relLimit, related.length);
+
+  let html = `<h3>${esc(e.name)}${e.abbr ? ` <span class="ld-abbr">${esc(e.abbr)}</span>` : ''} <span class="ld-cat">${esc(getCategoryName(e.category))}</span></h3>`;
+  if (e.simple) {
+    html += `<div class="ld-simple"><span class="ld-simple-icon" aria-hidden="true">💡</span><div><strong>Intinya:</strong> ${esc(e.simple)}</div></div>`;
+  }
+  html += `<div class="ld-section"><h4>Apa itu?</h4><p>${esc(e.definition)}</p></div>`;
+  if (e.fungsi) html += `<div class="ld-section"><h4>Untuk apa?</h4><p>${esc(e.fungsi)}</p></div>`;
+  if (e.identifikasi) html += `<div class="ld-section"><h4>Cara mengenalinya</h4><p>${esc(e.identifikasi)}</p></div>`;
+  if (e.rumus) html += `<div class="ld-section"><h4>Polanya</h4><div class="ld-formula">${esc(e.rumus)}</div></div>`;
+  if (e.contoh?.length) {
+    html += `<div class="ld-section"><h4>Contoh</h4>`;
+    e.contoh.forEach(c => html += `<div class="ld-ex"><div class="ex-sent">${c.kalimat}</div><div class="ex-note">${esc(c.catatan)}</div></div>`);
+    html += `</div>`;
+  }
+  if (e.perbedaan) html += `<div class="ld-section"><h4>Bedanya dengan istilah lain</h4><p>${esc(e.perbedaan)}</p></div>`;
+  if (related.length) {
+    html += `<div class="ld-section"><h4>Istilah terkait</h4><div class="ld-related">`;
+    html += relShown.map(r => `<button type="button" class="lib-related-btn" data-term="${esc(r.id)}">${esc(r.name)}</button>`).join('');
+    html += `</div>`;
+    if (relHidden > 0) html += `<div style="margin-top:8px"><button class="view-more-btn" data-lib-expand="related">${relExp ? 'Show less' : `Show more (${relHidden} lagi)`}</button></div>`;
+    html += `</div>`;
+  }
+  detail.innerHTML = html;
+}
+
+function showGlossaryListView() {
+  $('lib-list-view').hidden = false;
+  $('lib-detail-view').hidden = true;
+  LIB_STATE.selectedId = null;
+}
+function showGlossaryDetailView(termId) {
+  if (!GRAMMAR_GLOSSARY[termId]) return;
+  LIB_STATE.selectedId = termId;
+  LIB_STATE.relatedExpanded = false;
+  $('lib-list-view').hidden = true;
+  $('lib-detail-view').hidden = false;
+  renderGlossaryDetail(termId);
+  $('lib-detail-view').scrollTop = 0;
+}
+
+function openGrammarLibrary(termId) {
+  _lastFocusedBeforeLib = document.activeElement;
+  const overlay = $('lib-overlay');
+  renderGlossaryCategories();
+  renderGlossaryList();
+  if (termId && GRAMMAR_GLOSSARY[termId]) showGlossaryDetailView(termId);
+  else showGlossaryListView();
+  openOverlay(overlay);
+  setTimeout(() => { const s = $('lib-search'); if (s) s.focus(); }, 50);
+}
+function closeGrammarLibrary() {
+  closeOverlay($('lib-overlay'));
+  if (_lastFocusedBeforeLib && typeof _lastFocusedBeforeLib.focus === 'function') {
+    try { _lastFocusedBeforeLib.focus(); } catch (_) {}
+  }
+}
+function openGlossaryTerm(termId) {
+  const overlay = $('lib-overlay');
+  if (overlay.getAttribute('data-open') !== 'true') openGrammarLibrary(termId);
+  else showGlossaryDetailView(termId);
+}
+function searchGlossary(q) {
+  LIB_STATE.search = q;
+  LIB_STATE.listExpanded = false;
+  renderGlossaryList();
+  if (LIB_STATE.selectedId && q.trim()) showGlossaryListView();
+}
+function debouncedSearchGlossary(q) {
+  clearTimeout(_libSearchTimer);
+  _libSearchTimer = setTimeout(() => searchGlossary(q), 120);
+}
+
+function initLibraryEvents() {
+  $('lib-close').addEventListener('click', closeGrammarLibrary);
+  $('lib-overlay').addEventListener('mousedown', e => {
+    if (e.target === $('lib-overlay')) closeGrammarLibrary();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && $('lib-overlay').getAttribute('data-open') === 'true') closeGrammarLibrary();
+  });
+  $('lib-search').addEventListener('input', e => debouncedSearchGlossary(e.target.value));
+  $('lib-cats').addEventListener('click', e => {
+    const btn = e.target.closest('[data-cat]');
+    if (!btn) return;
+    LIB_STATE.category = btn.dataset.cat;
+    LIB_STATE.listExpanded = false;
+    renderGlossaryCategories();
+    renderGlossaryList();
+    showGlossaryListView();
+  });
+  $('lib-list').addEventListener('click', e => {
+    const expandBtn = e.target.closest('[data-lib-expand="list"]');
+    if (expandBtn) { LIB_STATE.listExpanded = !LIB_STATE.listExpanded; renderGlossaryList(); return; }
+    const item = e.target.closest('[data-term]');
+    if (item) showGlossaryDetailView(item.dataset.term);
+  });
+  $('lib-detail-view').addEventListener('click', e => {
+    if (e.target.closest('#lib-back')) { showGlossaryListView(); return; }
+    const relExpand = e.target.closest('[data-lib-expand="related"]');
+    if (relExpand) {
+      LIB_STATE.relatedExpanded = !LIB_STATE.relatedExpanded;
+      if (LIB_STATE.selectedId) renderGlossaryDetail(LIB_STATE.selectedId);
+      return;
+    }
+    const item = e.target.closest('[data-term]');
+    if (item) showGlossaryDetailView(item.dataset.term);
+  });
+}
+
+/* ============================================================
+   20. PAGE NAVIGATION
+   ============================================================ */
+let currentPage = 'home';
+function setActiveNavButton(page) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+}
+function switchPage(page) {
+  if (page === currentPage) return;
+  currentPage = page;
+  const homeEl = $('page-home'), settingsEl = $('page-settings');
+  if (page === 'home') { homeEl.classList.remove('page-hidden'); settingsEl.classList.add('page-hidden'); }
+  else if (page === 'settings') { homeEl.classList.add('page-hidden'); settingsEl.classList.remove('page-hidden'); }
+  setActiveNavButton(page);
+  window.scrollTo({top:0, behavior: 'instant' in window ? 'instant' : 'auto'});
+}
+function initBottomNav() {
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const page = btn.dataset.page;
+      if (page === 'library') { openGrammarLibrary(); return; }
+      switchPage(page);
+    });
+  });
+}
+
+/* ============================================================
+   21. GLOBAL HANDLERS
+   ============================================================ */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-gloss]');
+  if (!el) return;
+  e.preventDefault();
+  openGlossaryTerm(el.dataset.gloss);
+});
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-expand]');
+  if (!btn) return;
+  const id = btn.dataset.expand;
+  EXPAND_STATE.set(id, !EXPAND_STATE.get(id));
+  if (id === 'validation') renderValidation();
+  else if (id === 'patterns') renderPatterns();
+});
+
+/* ============================================================
+   22. MAIN EVENT BINDING
+   ============================================================ */
+const inputEl = $('input');
+$('go').addEventListener('click', () => analyze());
+$('reset').addEventListener('click', () => {
+  inputEl.value = '';
+  autoGrowInput();
+  Object.assign(STATE, {tokens:[], spans:[], structure:{}, grammar:[], issues:[], selected:null});
+  EXPAND_STATE.clear();
+  $('output').innerHTML = '';
+  $('legend').innerHTML = '';
+  $('status').hidden = true;
+  $('summary').innerHTML = `<h3>Ringkasan Struktur</h3><div class="muted">—</div>`;
+  $('detail').innerHTML = `<h3>Detail Kata</h3><div class="muted">Klik sebuah kata atau frasa di kalimat di atas.</div>`;
+  $('validation').innerHTML = `<h3>Pemeriksaan Grammar</h3><div class="muted">—</div>`;
+  $('patterns').innerHTML = `<h3>Pola Grammar yang Terdeteksi</h3><div class="muted">—</div>`;
+});
+inputEl.addEventListener('input', autoGrowInput);
+inputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); analyze(); }
+});
+$('tabs').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-mode]');
+  if (!btn) return;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  STATE.mode = btn.dataset.mode;
+  renderSentence();
+  renderLegend();
+});
+$('output').addEventListener('click', e => {
+  const el = e.target.closest('.tok');
+  if (!el) return;
+  STATE.selected = parseInt(el.dataset.idx, 10);
+  renderSentence();
+  renderDetail();
+});
+
+/* ============================================================
+   23. TEST CORPUS
+   ============================================================ */
+const TEST_CORPUS = [
+  /* Kelompok A */
+  { group: 'A', s: 'She goes to school every day.', tense: ['Simple Present'], noIssue: ['subject-verb-agreement'] },
+  { group: 'A', s: 'They are playing football now.', tense: ['Present Continuous'] },
+  { group: 'A', s: 'The book was written by John.', tense: ['Simple Past (Passive)'] },
+  { group: 'A', s: 'He has been working since morning.', tense: ['Present Perfect Continuous'] },
+  { group: 'A', s: 'She likes tea.', tense: ['Simple Present'], noIssue: ['subject-verb-agreement'] },
+  { group: 'A', s: 'He makes cakes.', tense: ['Simple Present'] },
+  { group: 'A', s: 'She takes the bus.', tense: ['Simple Present'] },
+  { group: 'A', s: 'He lives in Jakarta.', tense: ['Simple Present'] },
+  { group: 'A', s: 'She writes books.', tense: ['Simple Present'] },
+  { group: 'A', s: 'It uses energy.', tense: ['Simple Present'] },
+  { group: 'A', s: 'My sister is a nurse.', noIssue: ['subject-verb-agreement'] },
+  { group: 'A', s: 'My mother cooks well.', noIssue: ['subject-verb-agreement'] },
+  { group: 'A', s: 'My father works in a bank.', noIssue: ['subject-verb-agreement'] },
+  { group: 'A', s: 'I don\u2019t like tea.', noIssue: ['subject-verb-agreement'] },
+  { group: 'A', s: 'She hasn\u2019t finished her work.', tense: ['Present Perfect'] },
+  { group: 'A', s: "He hasn't finished yet.", tense: ['Present Perfect'] },
+  { group: 'A', s: "They haven't arrived.", tense: ['Present Perfect'] },
+  { group: 'A', s: "She'll call you tomorrow.", tense: ['Simple Future'] },
+  { group: 'A', s: "There's a book on the table." },
+  { group: 'A', s: "He's gone to school.", tense: ['Present Perfect'] },
+
+  /* Kelompok B */
+  { group: 'B', s: 'I goes to school.', issue: ['subject-verb-agreement'] },
+  { group: 'B', s: 'I have went home.', issue: ['v3'] },
+  { group: 'B', s: 'She is go to school.', issue: ['auxiliary-verb'] },
+  { group: 'B', s: 'A apple is on the table.', issue: ['determiner'] },
+  { group: 'B', s: 'He are happy.', issue: ['subject-verb-agreement'] },
+  { group: 'B', s: 'I have eat rice.', issue: ['v3'] },
+
+  /* Kelompok C */
+  { group: 'C', s: 'asdf qwer zxcv', notAnalyzable: true },
+  { group: 'C', s: 'Saya makan nasi', notAnalyzable: true },
+  { group: 'C', s: 'The the the', notAnalyzable: true },
+
+  /* Kelompok D */
+  { group: 'D', s: 'She can goes home.', issue: ['modal-verb'] },
+  { group: 'D', s: 'She can played yesterday.', issue: ['modal-verb'] },
+  { group: 'D', s: 'She can eating now.', issue: ['modal-verb'] },
+  { group: 'D', s: 'The children play outside.', noIssue: ['subject-verb-agreement'] },
+  { group: 'D', s: 'People like music.', noIssue: ['subject-verb-agreement'] },
+  { group: 'D', s: 'He goes home and she go to school.', issue: ['subject-verb-agreement'] },
+  { group: 'D', s: 'I think that he go home.', issue: ['subject-verb-agreement'] },
+  { group: 'D', s: 'Tom and Mary plays tennis.', issue: ['subject-verb-agreement'] },
+  { group: 'D', s: 'The news is good.', noIssue: ['subject-verb-agreement'] },
+
+  /* Kelompok E */
+  { group: 'E', s: 'She should have gone home.', tense: ['Modal Perfect'] },
+  { group: 'E', s: 'He must have left.', tense: ['Modal Perfect'] },
+  { group: 'E', s: 'She is going to buy a car.', tense: ['Be going to (Future)'] },
+  { group: 'E', s: 'The letter has been written.', tense: ['Present Perfect (Passive)'] },
+  { group: 'E', s: 'The shop will be closed tomorrow.', tense: ['Simple Future (Passive)'] },
+  { group: 'E', s: 'She is a teacher.', tense: ['Simple Present (copula)'] },
+
+  /* Kelompok F */
+  { group: 'F', s: 'The man wearing a hat is my uncle.', chunkNoOverlap: true },
+  { group: 'F', s: 'Reading books is fun.', chunkNoOverlap: true },
+  { group: 'F', s: 'She has not been reading.', tense: ['Present Perfect Continuous'] },
+  { group: 'F', s: 'She is not going to buy a car.', tense: ['Be going to (Future)'] },
+  { group: 'F', s: 'They will not have finished.', tense: ['Future Perfect'], chunkNoOverlap: true },
+
+  /* Kelompok G */
+  { group: 'G', s: 'Does she like coffee?', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'Why does she go there?', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'Where does he live?', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'Does he goes home?', issue: ['auxiliary-verb'] },
+  { group: 'G', s: 'Can he swims?', issue: ['modal-verb'] },
+  { group: 'G', s: 'Did she went home?', issue: ['auxiliary-verb'] },
+  { group: 'G', s: 'She have gone.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'They has gone.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'She do not know.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'I does not know.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'I are happy.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'They was late.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'He were late.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: "He don't want coffee.", issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'The box of chocolates is expensive.', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'The books on the table are mine.', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'The list of items are long.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'The books on the table is mine.', issue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'Reading is fun.', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'Swimming is good for health.', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'James likes music.', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: 'Mathematics is difficult.', noIssue: ['subject-verb-agreement'] },
+  { group: 'G', s: "He hadn't left.", noIssue: ['v3'] },
+  { group: 'G', s: "She hasn't left.", noIssue: ['v3'] },
+  { group: 'G', s: "They haven't told us.", noIssue: ['v3'] },
+  { group: 'G', s: 'I have not left.', noIssue: ['v3'] },
+
+  /* Kelompok H */
+  { group: 'H', s: 'I know when he comes.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'I know when he come.', issue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'I know if he comes.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'I know if he come.', issue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'She sings while she works.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'She sings while she work.', issue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'I will call you when I arrive.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'Every day I go to school.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'Every day I goes to school.', issue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'Last week she walks to work.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'Last week she walk to work.', issue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'Yesterday she walks to school.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'Yesterday she walk to school.', issue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'Yesterday, she walk to school.', issue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'In the morning she walks to work.', noIssue: ['subject-verb-agreement'] },
+  { group: 'H', s: 'She has money left.', noIssue: ['v3'] },
+  { group: 'H', s: 'She has left money.', noIssue: ['v3'] },
+  { group: 'H', s: 'She has went home.', issue: ['v3'] },
+
+  /* Kelompok I */
+  { group: 'I', s: 'She goes to school every day.', verdict: 'clean' },
+  { group: 'I', s: 'The professor presented glorious unfamiliar theories about quantum entanglement to skeptical colleagues yesterday.', verdict: 'abstain' },
+  { group: 'I', s: 'A peculiar cat arrived.', verdict: 'hedged' },
+  { group: 'I', s: 'asdf qwer zxcv', verdict: 'abstain' },
+  { group: 'I', s: 'If I were you, I would go.', noIssue: ['subject-verb-agreement'] },
+  { group: 'I', s: 'I were happy.', issue: ['subject-verb-agreement'] },
+  { group: 'I', s: 'A lot of students are late.', noIssue: ['subject-verb-agreement'] },
+  { group: 'I', s: 'A number of books are missing.', noIssue: ['subject-verb-agreement'] },
+  { group: 'I', s: 'The rest of the cake is here.', noIssue: ['subject-verb-agreement'] },
+  { group: 'I', s: 'A lot of students is late.', issue: ['subject-verb-agreement'] },
+  { group: 'I', s: 'I suggest a plan.', noIssue: ['subject-verb-agreement'] },
+  { group: 'I', s: 'She is friendly.', noIssue: ['subject-verb-agreement'] },
+  { group: 'I', s: 'The order is ready.', noIssue: ['subject-verb-agreement'] },
+  { group: 'I', s: 'Many informations are useful.', msgContains: ['uncountable'] },
+  { group: 'I', s: 'Some advice is useful.', noIssue: ['subject-verb-agreement'] },
+  { group: 'I', s: 'The books on the table is mine.', msgContains: ['The books on the table'] },
+
+  /* Kelompok J */
+  { group: 'J', s: 'The students who study hard pass the exam.', noIssue: ['subject-verb-agreement'] },
+  { group: 'J', s: 'The students who study hard passes the exam.', issue: ['subject-verb-agreement'] },
+  { group: 'J', s: 'The book which I bought yesterday was expensive.', noIssue: ['subject-verb-agreement'] },
+  { group: 'J', s: 'The book which I bought yesterday were expensive.', issue: ['subject-verb-agreement'] },
+
+  /* Kelompok K */
+  { group: 'K', s: 'The study was surprising.', noIssue: ['subject-verb-agreement'] },
+  { group: 'K', s: 'The results of the study was surprising.', issue: ['subject-verb-agreement'] },
+  { group: 'K', s: 'The results of the study were surprising.', noIssue: ['subject-verb-agreement'] },
+  { group: 'K', s: 'She studies English.', tense: ['Simple Present'], noIssue: ['subject-verb-agreement'] },
+  { group: 'K', s: 'The reply was quick.', noIssue: ['subject-verb-agreement'] },
+  { group: 'K', s: 'The supply is low.', noIssue: ['subject-verb-agreement'] },
+
+  /* Kelompok L: W8 transfer patterns */
+  { group: 'L', s: 'I like to reading books.', issue: ['transfer-to-ing'] },
+  { group: 'L', s: 'I want to eating rice.', issue: ['transfer-to-ing'] },
+  { group: 'L', s: 'She likes to reading.', issue: ['transfer-to-ing'] },
+  { group: 'L', s: 'He is more taller than me.', issue: ['transfer-more-er'] },
+  { group: 'L', s: 'I am agree.', issue: ['transfer-be-agree'] },
+  { group: 'L', s: 'She is agree.', issue: ['transfer-be-agree'] },
+  { group: 'L', s: 'We discuss about the topic.', issue: ['transfer-discuss-about'] },
+  { group: 'L', s: 'She is married with him.', issue: ['transfer-married-with'] },
+  { group: 'L', s: 'I like to read books.', noIssue: ['transfer-to-ing'] },
+  { group: 'L', s: 'I want to eat rice.', noIssue: ['transfer-to-ing'] },
+  { group: 'L', s: 'He is taller than me.', noIssue: ['transfer-more-er'] },
+  { group: 'L', s: 'I agree.', noIssue: ['transfer-be-agree'] },
+  { group: 'L', s: 'We discuss the topic.', noIssue: ['transfer-discuss-about'] },
+  { group: 'L', s: 'She is married to him.', noIssue: ['transfer-married-with'] },
+
+  /* Kelompok M: W9 fix regresi & kontradiksi */
+  { group: 'M', s: 'The books which I bought yesterday were expensive.', noIssue: ['subject-verb-agreement'] },
+  { group: 'M', s: 'The people who live next door are nice.', noIssue: ['subject-verb-agreement'] },
+  { group: 'M', s: 'The number of students is increasing.', noIssue: ['subject-verb-agreement'] },
+  { group: 'M', s: 'The number of students are increasing.', issue: ['subject-verb-agreement'] },
+  { group: 'M', s: 'The group of students is waiting.', noIssue: ['subject-verb-agreement'] },
+  { group: 'M', s: 'I look forward to meeting you.', noIssue: ['transfer-to-ing'] },
+  { group: 'M', s: 'I am looking forward to meeting you.', noIssue: ['transfer-to-ing'] },
+  { group: 'M', s: 'They are discussing about the plan.', issue: ['transfer-discuss-about'] },
+  { group: 'M', s: 'I am agree.', issue: ['transfer-be-agree'], noIssue: ['auxiliary-verb'] },
+  { group: 'M', s: 'Because I was tired, I went home.', noIssue: ['subject-verb-agreement'] },
+  { group: 'M', s: 'I like to read books.', noIssue: ['transfer-to-ing'] },
+  { group: 'M', s: 'She likes to reading.', issue: ['transfer-to-ing'] },
+
+  /* Kelompok N: W10 */
+  { group: 'N', s: 'One of the students is here.', noIssue: ['subject-verb-agreement'] },
+  { group: 'N', s: 'One of the students are here.', issue: ['subject-verb-agreement'] },
+  { group: 'N', s: 'One of my friends is a doctor.', noIssue: ['subject-verb-agreement'] },
+  { group: 'N', s: 'One of my friends are a doctor.', issue: ['subject-verb-agreement'] },
+  { group: 'N', s: 'I have lived here since 2 years.', issue: ['transfer-since-for'] },
+  { group: 'N', s: 'I have lived here for 2 years.', noIssue: ['transfer-since-for'] },
+  { group: 'N', s: 'She has been waiting since 3 hours.', issue: ['transfer-since-for'] },
+  { group: 'N', s: 'She has been waiting for 3 hours.', noIssue: ['transfer-since-for'] },
+  { group: 'N', s: 'I have known him since 2020.', noIssue: ['transfer-since-for'] },
+  { group: 'N', s: 'I have known him since Monday.', noIssue: ['transfer-since-for'] },
+  { group: 'N', s: 'Book is on table.', issue: ['missing-article'] },
+  { group: 'N', s: 'I read book.', issue: ['missing-article'] },
+  { group: 'N', s: 'I read a book.', noIssue: ['missing-article'] },
+  { group: 'N', s: 'She is a teacher.', noIssue: ['missing-article'] },
+  { group: 'N', s: 'I drink water.', noIssue: ['missing-article'] },
+  { group: 'N', s: 'John is here.', noIssue: ['missing-article'] },
+  { group: 'N', s: 'Books are here.', noIssue: ['missing-article'] },
+  { group: 'N', s: 'School is fun.', noIssue: ['missing-article'] },
+
+  /* Kelompok O: W11 data integrity */
+  { group: 'O', s: '[data] 15 core glossary entries have simple field', dataCheck: (fails) => {
+    const ids = ['noun','verb','v1','v2','v3','simple-present','simple-past','simple-future',
+                 'present-continuous','present-perfect',
+                 'transfer-to-ing','transfer-more-er','transfer-be-agree',
+                 'transfer-discuss-about','transfer-married-with'];
+    for (const id of ids) {
+      if (!GRAMMAR_GLOSSARY[id]) fails.push(`glossary "${id}" tidak ada`);
+      else if (!GRAMMAR_GLOSSARY[id].simple) fails.push(`glossary "${id}" tidak punya field simple`);
+    }
+  }},
+  { group: 'O', s: '[data] simple field is short (≤250 chars) and non-empty', dataCheck: (fails) => {
+    for (const [id, e] of Object.entries(GRAMMAR_GLOSSARY)) {
+      if (!e.simple) continue;
+      if (e.simple.length === 0) fails.push(`glossary "${id}".simple kosong`);
+      if (e.simple.length > 250) fails.push(`glossary "${id}".simple terlalu panjang (${e.simple.length} char)`);
+    }
+  }},
+  { group: 'O', s: '[data] TAG_TO_GLOSSARY values all exist', dataCheck: (fails) => {
+    for (const [tag, gid] of Object.entries(TAG_TO_GLOSSARY)) {
+      if (!GRAMMAR_GLOSSARY[gid]) fails.push(`TAG_TO_GLOSSARY["${tag}"] → "${gid}" tidak ada`);
+    }
+  }},
+  { group: 'O', s: '[data] PHRASE_TO_GLOSSARY values all exist', dataCheck: (fails) => {
+    for (const [type, gid] of Object.entries(PHRASE_TO_GLOSSARY)) {
+      if (!GRAMMAR_GLOSSARY[gid]) fails.push(`PHRASE_TO_GLOSSARY["${type}"] → "${gid}" tidak ada`);
+    }
+  }},
+  { group: 'O', s: '[data] FORM_TO_GLOSSARY values all exist', dataCheck: (fails) => {
+    for (const [form, gid] of Object.entries(FORM_TO_GLOSSARY)) {
+      if (!GRAMMAR_GLOSSARY[gid]) fails.push(`FORM_TO_GLOSSARY["${form}"] → "${gid}" tidak ada`);
+    }
+  }},
+
+  /* Kelompok P: W12-A */
+  { group: 'P', s: 'I like football.', noIssue: ['missing-article'] },
+  { group: 'P', s: 'Football is fun.', noIssue: ['missing-article'] },
+  { group: 'P', s: 'He plays football.', noIssue: ['missing-article'] },
+  { group: 'P', s: 'Time flies.', noIssue: ['missing-article'] },
+  { group: 'P', s: 'I love life.', noIssue: ['missing-article'] },
+  { group: 'P', s: 'I read book.', issue: ['missing-article'] },
+  { group: 'P', s: 'Book is on table.', issue: ['missing-article'] },
+  { group: 'P', s: 'I read a book.', noIssue: ['missing-article'] },
+  { group: 'P', s: 'I have lived here since two years ago.', noIssue: ['transfer-since-for'] },
+  { group: 'P', s: 'I have lived here since 2 years.', issue: ['transfer-since-for'] },
+  { group: 'P', s: 'The movie is exciting.', tense: ['Simple Present (copula)'], noIssue: ['subject-verb-agreement'] },
+  { group: 'P', s: 'She is interested in history.', tense: ['Simple Present (copula)'], noIssue: ['subject-verb-agreement'] },
+
+  /* Kelompok Q: W12-B multi-finite verb & missing copula */
+  { group: 'Q', s: 'The book I bought were expensive.', issue: ['subject-verb-agreement'] },
+  { group: 'Q', s: 'I think he are right.', issue: ['subject-verb-agreement'] },
+  { group: 'Q', s: 'I think he is right.', noIssue: ['subject-verb-agreement'] },
+  { group: 'Q', s: 'I think she is nice.', noIssue: ['subject-verb-agreement'] },
+  { group: 'Q', s: 'She very beautiful.', msgContains: ['butuh "be"'] },
+  { group: 'Q', s: 'My father engineer.', msgContains: ['butuh "be"'] },
+  { group: 'Q', s: 'He tall.', msgContains: ['butuh "be"'] },
+  { group: 'Q', s: 'She is very beautiful.', noIssue: ['subject-verb-agreement'] },
+  { group: 'Q', s: 'My father is an engineer.', noIssue: ['subject-verb-agreement'] },
+  { group: 'Q', s: 'He is tall.', noIssue: ['subject-verb-agreement'] },
+  { group: 'Q', s: 'asdf qwer zxcv', verdict: 'abstain' }
+];
+
+function runOneTest(tc) {
+  const tokens = tokenize(tc.s);
+  tagAll(tokens);
+  const spans = chunk(tokens);
+  const grammar = detectGrammar(tokens, spans);
+  const clauses = splitClauses(tokens);
+  const structures = clauses.map(c => {
+    const s = analyzeStructure(tokens, spans, c.start, c.end);
+    s.grammar = grammar.filter(g => g.span.start >= c.start && g.span.end <= c.end);
+    return s;
+  });
+  const issues = validate(tokens, structures);
+
+  const tenseNames = grammar.map(g => g.name);
+  const issueIds = issues.filter(i => i.level !== 'info').map(i => i.glossId);
+  const infoMsgs = issues.filter(i => i.level === 'info').map(i => i.msg);
+
+  const fails = [];
+
+  if (tc.dataCheck) tc.dataCheck(fails);
+
+  if (tc.chunkNoOverlap) {
+    const sorted = spans.slice().sort((a, b) => a.start - b.start);
+    for (let k = 1; k < sorted.length; k++) {
+      if (sorted[k].start <= sorted[k-1].end) {
+        fails.push(`chunk overlap: [${sorted[k-1].start},${sorted[k-1].end}] vs [${sorted[k].start},${sorted[k].end}]`);
+        break;
+      }
+    }
+  }
+
+  if (tc.tense) {
+    for (const exp of tc.tense) {
+      const match = tenseNames.some(n => n === exp);
+      if (!match) fails.push(`tense "${exp}" tidak ketemu (exact); dapat [${tenseNames.join(', ') || '-'}]`);
+    }
+  }
+  if (tc.issue) {
+    for (const exp of tc.issue) {
+      if (!issueIds.includes(exp)) fails.push(`issue "${exp}" tidak terdeteksi; dapat [${issueIds.join(', ') || '-'}]`);
+    }
+  }
+  if (tc.noIssue) {
+    for (const exp of tc.noIssue) {
+      if (issueIds.includes(exp)) fails.push(`false positive: "${exp}" muncul`);
+    }
+  }
+  if (tc.notAnalyzable) {
+    const has = infoMsgs.some(m => m.toLowerCase().includes('tidak dapat dianalisis'));
+    if (!has) fails.push(`tidak dapat low-confidence message; dapat: "${infoMsgs.join(' | ').slice(0, 80)}"`);
+  }
+  if (tc.verdict) {
+    const info = issues.find(i => i.level === 'info');
+    const v = info && info.verdict;
+    if (v !== tc.verdict) fails.push(`verdict "${tc.verdict}" tidak ketemu; dapat "${v || '-'}"`);
+  }
+  if (tc.msgContains) {
+    const all = issues.map(i => i.msg).join(' | ');
+    for (const frag of tc.msgContains) {
+      if (!all.includes(frag)) fails.push(`pesan tidak memuat "${frag}"; dapat: "${all.slice(0,80)}"`);
+    }
+  }
+
+  return { tc, tenseNames, issueIds, infoMsgs, fails, pass: fails.length === 0 };
+}
+
+function renderTestResults(results) {
+  const pass = results.filter(r => r.pass).length;
+  const xfailPass = results.filter(r => !r.pass && r.tc.xfail).length;
+  const fail = results.filter(r => !r.pass && !r.tc.xfail).length;
+  const total = results.length;
+
+  let html = `<div class="test-summary">
+    <span class="pill ok">✓ ${pass} pass</span>
+    ${xfailPass ? `<span class="pill xfail">◐ ${xfailPass} xfail (known)</span>` : ''}
+    ${fail ? `<span class="pill fail">✗ ${fail} fail</span>` : ''}
+    <span class="pill" style="background:#f0f0f0;color:#444">total: ${total}</span>
+  </div>`;
+
+  const interesting = results.filter(r => !r.pass || (r.pass && r.tc.xfail));
+  if (!interesting.length) {
+    html += `<p style="font-size:13px;color:#444">Semua test pass sesuai harapan. 🎉</p>`;
+  } else {
+    interesting.forEach(r => {
+      const cls = r.pass && r.tc.xfail ? 'pass' : (r.tc.xfail ? 'xfail' : 'fail');
+      const tag = r.pass && r.tc.xfail ? 'X-PASS' : (r.tc.xfail ? 'XFAIL' : 'FAIL');
+      html += `<div class="test-row ${cls}">
+        <span class="tag">${tag}</span>
+        <span class="sent">"${esc(r.tc.s)}"</span>
+        <div class="detail">
+          tense=[${r.tenseNames.join(', ') || '-'}] · issues=[${r.issueIds.join(', ') || '-'}]<br>
+          ${r.tc.xfail ? `<em style="color:#8a6d00">Diketahui gagal: ${esc(r.tc.xfail)}</em><br>` : ''}
+          ${r.fails.length ? `<strong>${r.fails.map(esc).join(' · ')}</strong>` : 'sesuai harapan'}
+        </div>
+      </div>`;
+    });
+  }
+  $('test-panel').innerHTML = html;
+}
+
+function runTests() {
+  const results = TEST_CORPUS.map(runOneTest);
+  renderTestResults(results);
+  $('test-panel').hidden = false;
+  const pass = results.filter(r => r.pass).length;
+  const fail = results.filter(r => !r.pass && !r.tc.xfail).length;
+  console.log(`[TEST] ${pass}/${results.length} pass, ${fail} real failures`);
+}
+
+/* ============================================================
+   24. INIT
+   ============================================================ */
+const tcEl = $('target-count');
+if (tcEl) tcEl.textContent = TEST_CORPUS.length + ' pass · 0 fail · 0 xfail';
+
+$('run-tests').addEventListener('click', runTests);
+initLibraryEvents();
+initBottomNav();
+initTextViewEvents();
+autoGrowInput();
+analyze({ silent: true });
+</script>
+</body>
+</html>

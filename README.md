@@ -4,8 +4,8 @@ Offline, single-file, rule-based English grammar analysis tool for Indonesian le
 
 **Version 2.6.0 (Wave 13 — modularized)**
 
-Output: `GI(latest).html` (single HTML file, self-contained).
-Source lives in `src/`. Do not edit `GI(latest).html` directly.
+Output: `GI.latest.html` (single HTML file, self-contained).
+Source lives in `src/`. Do not edit `GI.latest.html` directly.
 
 Target: computed from `TEST_CORPUS.length`, must show `N pass · 0 fail · 0 xfail`.
 
@@ -43,7 +43,7 @@ These rules must hold after every edit:
 
 | File | Section | Contents |
 |---|---|---|
-| 00-contract | — | `_CONTRACT` runtime metadata |
+| 00-contract | — | placeholder, kontrak hidup di README |
 | 01-util | 0 | `VERB_TAGS`, `findVerbAfterAux`, `findSubjectHead`, `getSubjectNumber` |
 | 02-lexicon | 1 | `LEX`, `UNCOUNTABLE`, `DURATION_UNITS`, `INSTITUTIONAL_NN`, `ARTICLE_REQUIRED_NN`, `NUMBER_INVARIANT` |
 | 03-irregular | 2 | `IRREG`, `V2_EQ_V3` |
@@ -73,7 +73,7 @@ These rules must hold after every edit:
 ## Changelog
 
 ### W13 — v2.6.0 (modularization)
-- Split single-file `GI(latest).html` into `src/` with per-section files.
+- Split single-file `GI.latest.html` into `src/` with per-section files.
 - Added `(no longer used)` (Python-based, no external deps).
 - Moved contract + changelog to README.md.
 - License changed from AGPL v3 to Apache 2.0.

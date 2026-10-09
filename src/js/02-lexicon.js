@@ -9,32 +9,6 @@ reg(['be','am','is','are','was','were','been','being'], {t:'VB', lemma:'be'});
 reg(['do','does','did'], {t:'VB', lemma:'do'});
 reg(['have','has','had'], {t:'VB', lemma:'have'});
 
-reg(['be','am','is','are','was','were','been','being'], {t:'VB', lemma:'be'});
-reg(['do','does','did'], {t:'VB', lemma:'do'});
-reg(['have','has','had'], {t:'VB', lemma:'have'});
-
-reg(['i','me'], {t:'PRP',person:1,num:'sg'});
-reg('you', {t:'PRP',person:2,num:'sg'});
-reg(['he','she','it'], {t:'PRP',person:3,num:'sg'});
-reg('we', {t:'PRP',person:1,num:'pl'});
-reg('they', {t:'PRP',person:3,num:'pl'});
-reg(['him','us','them'], {t:'PRP'});
-reg('her', {t:'PRP',amb:['PRP$']});
-reg(['my','your','our','their','its'], {t:'PRP$'});
-reg('his', {t:'PRP$',amb:['PRP']});
-reg(['the','a','an','this','these','those','each','every','no','any'], {t:'DT'});
-reg('some', {t:'DT',amb:['PRP']});
-reg('that', {t:'DT',amb:['PRP','IN']});
-reg(['who','whom','what'], {t:'WP'});
-reg('whose', {t:'WP$'});
-reg('which', {t:'WDT'});
-reg(['when','where','why','how'], {t:'WRB'});
-reg(['of','in','on','at','from','with','without','for','by','about','into','onto','over','under','between','among','through','during','after','before','until','since','within','although','though','if','unless','while','as','than','upon','across','along','around','behind','below','beneath','beside','beyond','near','off','out','past','toward','towards','up','down','against','despite','besides','except','inside','outside','because'], {t:'IN'});
-reg('like', {t:'VB',amb:['IN']});
-reg('to', {t:'TO',amb:['IN']});
-reg(['and','or','but','so','yet','nor'], {t:'CC'});
-reg(['will','would','can','could','shall','should','may','might','must'], {t:'MD'});
-
 reg(['i','me'], {t:'PRP',person:1,num:'sg'});
 reg('you', {t:'PRP',person:2,num:'sg'});
 reg(['he','she','it'], {t:'PRP',person:3,num:'sg'});
