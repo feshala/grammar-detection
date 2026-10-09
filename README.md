@@ -4,21 +4,8 @@ Offline, single-file, rule-based English grammar analysis tool for Indonesian le
 
 **Version 2.6.0 (Wave 13 — modularized)**
 
-## Build
-
-Run:
-
-```bash
-./(no longer used)
-```
-
 Output: `GI(latest).html` (single HTML file, self-contained).
-
 Source lives in `src/`. Do not edit `GI(latest).html` directly.
-
-## Test
-
-Open `GI(latest).html` in a browser, navigate to **Settings**, click **Run Tests**.
 
 Target: computed from `TEST_CORPUS.length`, must show `N pass · 0 fail · 0 xfail`.
 
